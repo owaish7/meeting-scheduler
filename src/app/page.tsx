@@ -9,7 +9,7 @@
  * there is only one implementation of that logic to keep correct.
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState, useSyncExternalStore } from "react";
 import { ParticipantPanel } from "@/components/ParticipantPanel";
 import { Results } from "@/components/Results";
 import { participantRepository } from "@/lib/repository";
@@ -22,7 +22,14 @@ const controlClass =
   "rounded-md border border-[var(--border)] bg-[var(--surface)] px-2.5 py-1.5 text-sm outline-none focus:border-[var(--accent)]";
 
 export default function Home() {
-  const [participants, setParticipants] = useState<Participant[]>([]);
+  // Read through the store rather than copied into local state, so there is one
+  // source of truth and no effect that re-renders the list after mounting.
+  const participants = useSyncExternalStore(
+    participantRepository.subscribe,
+    participantRepository.getSnapshot,
+    participantRepository.getServerSnapshot,
+  );
+
   const [durationMinutes, setDurationMinutes] = useState(DEFAULT_DURATION_MINUTES);
   const [from, setFrom] = useState(DEFAULT_RANGE.from);
   const [to, setTo] = useState(DEFAULT_RANGE.to);
@@ -31,17 +38,18 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // localStorage is not available during server rendering, so the list is loaded
-  // after mount to keep the server and client markup identical.
-  useEffect(() => {
-    setParticipants(participantRepository.load());
-  }, []);
-
-  const updateParticipants = useCallback((next: Participant[]) => {
-    setParticipants(next);
-    participantRepository.save(next);
-    // Any roster change invalidates the current answer; showing stale results
-    // beside an edited participant list would be actively misleading.
+  /**
+   * Apply a change to the participant list.
+   *
+   * Takes an updater and reads the store at call time rather than accepting a
+   * finished array. A pre-built array would be derived from the list captured at
+   * render, so two changes in quick succession would both start from the same
+   * snapshot and the first would be silently lost.
+   */
+  const updateParticipants = useCallback((update: (current: Participant[]) => Participant[]) => {
+    participantRepository.save(update(participantRepository.getSnapshot()));
+    // Any change to the list invalidates the current answer; showing stale
+    // results beside an edited participant list would be actively misleading.
     setResult(null);
   }, []);
 
@@ -84,11 +92,10 @@ export default function Home() {
         <div className="space-y-4">
           <ParticipantPanel
             participants={participants}
-            onAdd={(participant) => updateParticipants([...participants, participant])}
-            onRemove={(id) => updateParticipants(participants.filter((p) => p.id !== id))}
+            onAdd={(participant) => updateParticipants((current) => [...current, participant])}
+            onRemove={(id) => updateParticipants((current) => current.filter((p) => p.id !== id))}
             onReset={() => {
-              const seeded = participantRepository.reset();
-              setParticipants(seeded);
+              participantRepository.reset();
               setResult(null);
             }}
           />

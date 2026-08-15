@@ -54,7 +54,7 @@ export function ParticipantPanel({
   onRemove,
   onReset,
 }: ParticipantPanelProps) {
-  const zones = useMemo(supportedTimeZones, []);
+  const zones = useMemo(() => supportedTimeZones(), []);
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
