@@ -205,6 +205,17 @@ export function describeParticipantSlot(
   const localStart = DateTime.fromMillis(start, { zone });
   const localEnd = DateTime.fromMillis(end, { zone });
 
+  // Compared as calendar dates rather than instants: the question is which
+  // day the participant is on, not how many hours apart the two moments are.
+  const utcDate = DateTime.fromMillis(start, { zone: "utc" }).toISODate() ?? "";
+  const localDate = localStart.toISODate() ?? "";
+  const dayOffset = Math.round(
+    DateTime.fromISO(localDate, { zone: "utc" }).diff(
+      DateTime.fromISO(utcDate, { zone: "utc" }),
+      "days",
+    ).days,
+  );
+
   const view: ParticipantSlotView = {
     participantId: participant.id,
     name: participant.name,
@@ -216,6 +227,7 @@ export function describeParticipantSlot(
     localEnd: localEnd.toFormat("HH:mm"),
     // Resolved per date, so this correctly reads PDT in summer and PST in winter.
     zoneAbbreviation: localStart.toFormat("ZZZZ"),
+    dayOffset,
   };
 
   if (!available) {

@@ -126,6 +126,45 @@ describe("freeIntervals", () => {
   });
 });
 
+describe("local day shift", () => {
+  it("reports San Francisco on the previous day for an early-UTC meeting", () => {
+    // 04:30 UTC on Monday is Sunday evening in San Francisco - correct, and the
+    // kind of result that reads as a bug unless it is called out.
+    const view = describeParticipantSlot(
+      person("sara"),
+      DateTime.fromISO("2026-03-09T04:30:00Z").toMillis(),
+      DateTime.fromISO("2026-03-09T05:15:00Z").toMillis(),
+      false,
+    );
+
+    expect(view.localDate).toBe("Sun 8 Mar");
+    expect(view.dayOffset).toBe(-1);
+  });
+
+  it("reports Sydney on the next day for a late-UTC meeting", () => {
+    const view = describeParticipantSlot(
+      person("jack"),
+      DateTime.fromISO("2026-03-09T14:00:00Z").toMillis(),
+      DateTime.fromISO("2026-03-09T14:45:00Z").toMillis(),
+      false,
+    );
+
+    expect(view.localDate).toBe("Tue 10 Mar");
+    expect(view.dayOffset).toBe(1);
+  });
+
+  it("reports no shift when the local date matches the UTC date", () => {
+    const view = describeParticipantSlot(
+      person("tom"),
+      DateTime.fromISO("2026-03-09T14:00:00Z").toMillis(),
+      DateTime.fromISO("2026-03-09T14:45:00Z").toMillis(),
+      true,
+    );
+
+    expect(view.dayOffset).toBe(0);
+  });
+});
+
 describe("unavailability reasons", () => {
   it("explains how far before someone's day a slot falls", () => {
     // 11:00 UTC is 04:00 in San Francisco, two hours before Sara starts.

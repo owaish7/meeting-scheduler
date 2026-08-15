@@ -67,6 +67,15 @@ export interface ParticipantSlotView {
   localEnd: string;
   /** Short zone label for the slot's date, e.g. "PDT" - varies with DST. */
   zoneAbbreviation: string;
+  /**
+   * Whole days between this participant's local date and the slot's UTC date:
+   * -1 the day before, 0 the same day, +1 the day after.
+   *
+   * A meeting at 04:30 UTC on Monday falls on Sunday evening in San Francisco.
+   * That is correct and is exactly the kind of result that reads as a bug, so
+   * the shift is reported rather than left for the reader to notice.
+   */
+  dayOffset: number;
   /** Human-readable explanation, present only when `available` is false. */
   reason?: string;
   reasonKind?: UnavailabilityKind;

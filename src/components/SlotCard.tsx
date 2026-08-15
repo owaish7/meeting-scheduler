@@ -55,7 +55,17 @@ function dayLabel(isoDate: string): string {
  * Laid out vertically rather than as a name-and-time row, so it stays readable
  * at any column width instead of squeezing the name as columns narrow.
  */
+/** "the day before" / "the next day", for a local date that is not the UTC one. */
+function dayShiftLabel(offset: number): string | null {
+  if (offset === 0) return null;
+  if (offset === -1) return "previous day";
+  if (offset === 1) return "next day";
+  return offset < 0 ? `${Math.abs(offset)} days earlier` : `${offset} days later`;
+}
+
 function ParticipantRow({ view }: { view: ParticipantSlotView }) {
+  const shift = dayShiftLabel(view.dayOffset);
+
   return (
     <div
       className={`rounded-md px-3 py-2 ${
@@ -73,14 +83,29 @@ function ParticipantRow({ view }: { view: ParticipantSlotView }) {
         </span>
       </div>
 
-      <div className="tabular mt-0.5 flex items-baseline justify-between gap-2 text-xs text-[var(--muted)]">
-        <span className="truncate">{view.location}</span>
-        <span className="shrink-0">
-          {view.localDate} · {view.zoneAbbreviation}
-        </span>
+      <div className="tabular mt-0.5 text-right text-xs text-[var(--muted)]">
+        {view.localDate} · {view.zoneAbbreviation}
+        {/* A local date that is not the meeting's UTC date is correct and reads
+            as a bug, so it is called out rather than left to be noticed. */}
+        {shift && <span className="text-[var(--accent)]"> ({shift})</span>}
       </div>
 
-      {view.reason && <div className="mt-1 text-xs text-[var(--warn)]">{view.reason}</div>}
+      {/* City and zone identifier on their own line, each in full. Time-zone
+          handling is the substance of this app, so an abbreviated
+          "America/Los..." is the one thing that must not be cut off. */}
+      <div className="mt-1 text-xs leading-snug text-[var(--muted)]">
+        {view.location && <span>{view.location}</span>}
+        {view.location && <span aria-hidden="true"> · </span>}
+        <span className="break-all">{view.timeZone}</span>
+      </div>
+
+      {/* Availability is stated, not left to background colour alone. */}
+      {!view.available && (
+        <div className="mt-1 text-xs text-[var(--warn)]">
+          <span className="font-medium">Unavailable</span>
+          {view.reason && <span> · {view.reason}</span>}
+        </div>
+      )}
     </div>
   );
 }
@@ -128,6 +153,14 @@ export function SlotCard({ slot, label }: SlotCardProps) {
   // coordinator how much room they have to move the meeting.
   const isFlexible = slot.earliestStartUtc !== slot.latestStartUtc;
 
+  // The window closes one meeting-length after the last possible start.
+  const durationMs = new Date(slot.endUtc).getTime() - new Date(slot.startUtc).getTime();
+  const windowEndUtc = new Date(new Date(slot.latestStartUtc).getTime() + durationMs).toISOString();
+  const durationLabel =
+    durationMs % 3_600_000 === 0
+      ? `${durationMs / 3_600_000}-hour`
+      : `${Math.round(durationMs / 60_000)}-minute`;
+
   // Small groups keep everyone visible - for the four in the brief, seeing who
   // is missing at a glance is the point of the card.
   const isLargeGroup = slot.participants.length > COMPACT_THRESHOLD;
@@ -143,9 +176,27 @@ export function SlotCard({ slot, label }: SlotCardProps) {
           )}
           <h3 className="tabular text-base font-semibold">{utcLabel(slot.startUtc)} UTC</h3>
           {isFlexible && (
-            <p className="tabular mt-0.5 text-xs text-[var(--muted)]">
-              Can start anytime {timeOnly(slot.earliestStartUtc)}–{timeOnly(slot.latestStartUtc)} UTC
-            </p>
+            /*
+             * Two lines rather than one. The start range is necessarily shorter
+             * than the window it sits in - by exactly the meeting's length,
+             * since a meeting starting later than that would overrun the end -
+             * and showing both makes that relationship visible instead of
+             * leaving a range that looks arbitrarily clipped.
+             */
+            <dl className="tabular mt-1 space-y-0.5 text-xs text-[var(--muted)]">
+              <div className="flex gap-2">
+                <dt className="w-28 shrink-0">Available window</dt>
+                <dd>
+                  {timeOnly(slot.earliestStartUtc)}–{timeOnly(windowEndUtc)} UTC
+                </dd>
+              </div>
+              <div className="flex gap-2">
+                <dt className="w-28 shrink-0">{durationLabel} starts</dt>
+                <dd>
+                  {timeOnly(slot.earliestStartUtc)}–{timeOnly(slot.latestStartUtc)} UTC
+                </dd>
+              </div>
+            </dl>
           )}
         </div>
 

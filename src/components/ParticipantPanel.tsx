@@ -137,9 +137,11 @@ export function ParticipantPanel({
           >
             <div className="min-w-0">
               <div className="font-medium">{participant.name}</div>
-              <div className="truncate text-xs text-[var(--muted)]">
-                {participant.location} · {participant.timeZone}
-              </div>
+              {/* City and zone identifier on separate lines rather than a single
+                  truncated one: "America/Los..." hides exactly the detail this
+                  app exists to get right. */}
+              <div className="text-xs text-[var(--muted)]">{participant.location}</div>
+              <div className="text-xs break-all text-[var(--muted)]">{participant.timeZone}</div>
             </div>
 
             <div className="flex shrink-0 items-baseline gap-3">
