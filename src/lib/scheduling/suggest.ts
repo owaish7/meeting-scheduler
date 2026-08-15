@@ -70,7 +70,7 @@ export function suggest(request: SuggestRequest): SuggestResponse {
   const granularityMs = granularityMinutes * MINUTE;
 
   const { runs, freeByParticipant } = sweep(participants, range, durationMs, granularityMs);
-  const ranked = rankRuns(runs, durationMs, freeByParticipant);
+  const ranked = rankRuns(runs, durationMs, granularityMs, freeByParticipant);
 
   const meta = {
     durationMinutes,

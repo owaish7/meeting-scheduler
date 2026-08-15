@@ -74,13 +74,18 @@ export interface ParticipantSlotView {
 
 /** A candidate meeting time, merged across every contiguous position with the same attendees. */
 export interface Slot {
+  /**
+   * The recommended start, chosen from within the run for the best balance across
+   * attendees rather than simply the earliest position.
+   */
   startUtc: string;
   endUtc: string;
   /**
-   * Latest start that still keeps the same attendee set, as an ISO string.
-   * Contiguous candidate positions are merged into one result, so this slot can
-   * begin anywhere in `[startUtc, latestStartUtc]` without changing who attends.
+   * The flexible range this slot can move within. Contiguous candidate positions
+   * are merged into one result, so the meeting can begin anywhere between
+   * `earliestStartUtc` and `latestStartUtc` without changing who can attend.
    */
+  earliestStartUtc: string;
   latestStartUtc: string;
   attendeeCount: number;
   totalParticipants: number;

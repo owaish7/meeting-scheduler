@@ -153,8 +153,17 @@ describe("when a slot does exist", () => {
   it("merges contiguous positions into a single range", () => {
     // One continuous window should be one result, not sixteen offset by 15 minutes.
     expect(result.fullMatches).toHaveLength(1);
-    expect(utc(result.fullMatches[0].startUtc)).toBe("Mon 08:00");
+    expect(utc(result.fullMatches[0].earliestStartUtc)).toBe("Mon 08:00");
     expect(utc(result.fullMatches[0].latestStartUtc)).toBe("Mon 11:45");
+  });
+
+  it("recommends a time inside the window rather than flush against its edge", () => {
+    const slot = result.fullMatches[0];
+    const recommended = DateTime.fromISO(slot.startUtc).toMillis();
+
+    // 08:00 is the moment Tom's day begins; the recommendation should have moved off it.
+    expect(recommended).toBeGreaterThan(DateTime.fromISO(slot.earliestStartUtc).toMillis());
+    expect(recommended).toBeLessThanOrEqual(DateTime.fromISO(slot.latestStartUtc).toMillis());
   });
 });
 

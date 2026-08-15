@@ -31,6 +31,11 @@ export interface CandidateRun {
   firstStart: Instant;
   lastStart: Instant;
   attendeeIds: string[];
+  /**
+   * Where within the run the meeting should actually be placed. Set during
+   * ranking; falls back to `firstStart` when a run is built outside that path.
+   */
+  recommendedStart?: Instant;
 }
 
 export interface SweepResult {
@@ -130,19 +135,50 @@ function comfortScore(
   return total;
 }
 
+/**
+ * Choose where inside a run to actually place the meeting.
+ *
+ * A run is a range of equally valid start times, and taking the earliest reliably
+ * produces the worst one: it sits flush against the opening of somebody's day.
+ * For the brief's data that means recommending Maya's first 45 minutes of the
+ * morning when the same run offers a far more civilised time an hour later.
+ * Scanning the run for the highest comfort score costs nothing at these sizes.
+ */
+export function pickRecommendedStart(
+  run: CandidateRun,
+  durationMs: number,
+  granularityMs: number,
+  freeByParticipant: Map<string, Interval[]>,
+): Instant {
+  let best = run.firstStart;
+  let bestScore = -Infinity;
+
+  for (let start = run.firstStart; start <= run.lastStart; start += granularityMs) {
+    const score = comfortScore(run.attendeeIds, start, start + durationMs, freeByParticipant);
+    // Strictly greater keeps the earliest of equally comfortable positions.
+    if (score > bestScore) {
+      bestScore = score;
+      best = start;
+    }
+  }
+
+  return best;
+}
+
 /** Turn a run into an API-facing slot, resolved into every participant's local time. */
 export function toSlot(
   run: CandidateRun,
   participants: Participant[],
   durationMs: number,
 ): Slot {
-  const start = run.firstStart;
+  const start = run.recommendedStart ?? run.firstStart;
   const end = start + durationMs;
   const attending = new Set(run.attendeeIds);
 
   return {
     startUtc: DateTime.fromMillis(start, { zone: "utc" }).toISO() ?? "",
     endUtc: DateTime.fromMillis(end, { zone: "utc" }).toISO() ?? "",
+    earliestStartUtc: DateTime.fromMillis(run.firstStart, { zone: "utc" }).toISO() ?? "",
     latestStartUtc: DateTime.fromMillis(run.lastStart, { zone: "utc" }).toISO() ?? "",
     attendeeCount: run.attendeeIds.length,
     totalParticipants: participants.length,
@@ -164,15 +200,23 @@ export function toSlot(
 export function rankRuns(
   runs: CandidateRun[],
   durationMs: number,
+  granularityMs: number,
   freeByParticipant: Map<string, Interval[]>,
 ): CandidateRun[] {
-  return [...runs].sort((a, b) => {
+  // Each run is scored at the position it would actually be booked at, so ranking
+  // and recommendation agree rather than judging a time nobody would be offered.
+  const resolved = runs.map((run) => ({
+    ...run,
+    recommendedStart: pickRecommendedStart(run, durationMs, granularityMs, freeByParticipant),
+  }));
+
+  return resolved.sort((a, b) => {
     if (a.attendeeIds.length !== b.attendeeIds.length) {
       return b.attendeeIds.length - a.attendeeIds.length;
     }
 
-    const comfortA = comfortScore(a.attendeeIds, a.firstStart, a.firstStart + durationMs, freeByParticipant);
-    const comfortB = comfortScore(b.attendeeIds, b.firstStart, b.firstStart + durationMs, freeByParticipant);
+    const comfortA = comfortScore(a.attendeeIds, a.recommendedStart, a.recommendedStart + durationMs, freeByParticipant);
+    const comfortB = comfortScore(b.attendeeIds, b.recommendedStart, b.recommendedStart + durationMs, freeByParticipant);
     if (comfortA !== comfortB) return comfortB - comfortA;
 
     return a.firstStart - b.firstStart;
