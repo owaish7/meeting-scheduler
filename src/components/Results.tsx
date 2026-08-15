@@ -30,6 +30,20 @@ function SectionHeading({ title, hint }: { title: string; hint?: string }) {
 export function Results({ result }: { result: SuggestResponse }) {
   const { fullMatches, bestEffort, splitPlan, diagnosis, meta } = result;
 
+  /*
+   * The split plan is assembled from the same options as the best-effort list,
+   * so its meetings would otherwise appear twice on the page - once as the
+   * recommendation and again below it as an "alternative" to itself. Only the
+   * options the plan did not use are genuine alternatives.
+   *
+   * Filtered here rather than in the API: the response is complete and its two
+   * lists are independently meaningful, and which of them to show is a
+   * presentation decision.
+   */
+  const plannedStarts = new Set(splitPlan?.meetings.map((meeting) => meeting.slot.startUtc) ?? []);
+  const otherOptions = bestEffort.filter((slot) => !plannedStarts.has(slot.startUtc));
+  const hasPlan = Boolean(splitPlan && splitPlan.meetings.length > 0);
+
   if (fullMatches.length > 0) {
     return (
       <section>
@@ -107,14 +121,18 @@ export function Results({ result }: { result: SuggestResponse }) {
         </div>
       )}
 
-      {bestEffort.length > 0 && (
+      {otherOptions.length > 0 && (
         <div>
           <SectionHeading
-            title="Best single meeting"
-            hint={`The most people a single ${formatDuration(meta.durationMinutes)} meeting can reach is ${bestEffort[0].attendeeCount} of ${meta.participantCount}.`}
+            title={hasPlan ? "Other options" : "Best single meeting"}
+            hint={
+              hasPlan
+                ? `Instead of the plan above. A single ${formatDuration(meta.durationMinutes)} meeting reaches at most ${bestEffort[0].attendeeCount} of ${meta.participantCount}.`
+                : `The most people a single ${formatDuration(meta.durationMinutes)} meeting can reach is ${bestEffort[0].attendeeCount} of ${meta.participantCount}.`
+            }
           />
           <div className="space-y-3">
-            {bestEffort.map((slot) => (
+            {otherOptions.map((slot) => (
               <SlotCard key={slot.startUtc} slot={slot} />
             ))}
           </div>
