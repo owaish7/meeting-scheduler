@@ -181,6 +181,34 @@ describe("when a slot does exist", () => {
   });
 });
 
+describe("when participants cannot pair up at all", () => {
+  // San Francisco and Sydney share no working minute, so no real meeting exists
+  // between them at any time on any day.
+  const impossiblePair = SEED_PARTICIPANTS.filter((p) => ["sara", "jack"].includes(p.id));
+
+  const result = suggest({
+    participants: impossiblePair,
+    durationMinutes: 45,
+    from: "2026-03-08",
+    to: "2026-03-14",
+  });
+
+  it("finds no slot for the pair", () => {
+    expect(result.fullMatches).toEqual([]);
+  });
+
+  it("proposes no split plan rather than a plan of one-person meetings", () => {
+    // Covering each of them in a meeting of their own would technically include
+    // everyone while being of no use to anybody.
+    expect(result.splitPlan).toBeUndefined();
+  });
+
+  it("still explains why", () => {
+    expect(result.diagnosis?.blockingPairs).toHaveLength(1);
+    expect(result.diagnosis?.summary).toContain("No 45-minute slot works");
+  });
+});
+
 describe("pre-existing meetings", () => {
   it("removes time already booked", () => {
     const busyMorning: Participant[] = SEED_PARTICIPANTS.filter((p) =>

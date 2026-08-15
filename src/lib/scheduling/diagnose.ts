@@ -74,9 +74,18 @@ export function buildSplitPlan(
   const byMask = distinctByAttendeeSet(runs, index);
   if (byMask.size === 0) return undefined;
 
-  const options = [...byMask.keys()];
-  // Anyone with no availability anywhere cannot be covered, so the target is the
-  // union of what is actually reachable rather than the whole group.
+  /*
+   * A meeting needs at least two people. Without this, a group whose members
+   * cannot pair up at all gets "covered" by a plan of one-person meetings -
+   * technically everyone is included, and completely useless. Where no real
+   * meeting exists the diagnosis explains why, which is the honest answer.
+   */
+  const minimumAttendees = participants.length > 1 ? 2 : 1;
+  const options = [...byMask.keys()].filter((mask) => popcount(mask) >= minimumAttendees);
+  if (options.length === 0) return undefined;
+
+  // Anyone who cannot join any real meeting is unreachable, so the target is the
+  // union of what is actually coverable rather than the whole group.
   const target = options.reduce((acc, mask) => acc | mask, 0);
 
   const chosen =
