@@ -1,15 +1,13 @@
 /**
- * Interval algebra over absolute time.
+ * Maths on time ranges.
  *
- * Everything here is plain integer arithmetic on epoch milliseconds - no dates,
- * no time zones, no DST. That separation is deliberate: once local wall-clock
- * times have been resolved to instants (see `availability.ts`), the overlap
- * problem is ordinary set algebra on a number line and can be tested exhaustively
- * without any calendar reasoning.
+ * Just integers here - no dates, no time zones, no daylight saving. Once
+ * `availability.ts` has turned local hours into timestamps, "do these overlap?"
+ * is comparing numbers on a line, which is easy to test exhaustively.
  *
- * All intervals are half-open, `[start, end)`. Two intervals that merely touch
- * (`a.end === b.start`) do not overlap - which is the behaviour we want, since a
- * meeting ending at 17:00 and one starting at 17:00 do not conflict.
+ * Intervals are half-open: `[start, end)`. Two that only touch (one ends at
+ * exactly the moment the other starts) do not overlap - which is what we want,
+ * since a meeting ending at 17:00 does not clash with one starting at 17:00.
  */
 
 import type { Instant, Interval } from "./types";

@@ -1,12 +1,12 @@
 "use client";
 
 /**
- * The coordinator's screen.
+ * The main screen.
  *
- * State lives here and is persisted through `participantRepository`; all
- * scheduling is done by the API. The client deliberately performs no time-zone
- * arithmetic of its own - every local time on screen was resolved server-side, so
- * there is only one implementation of that logic to keep correct.
+ * State lives here and is saved through `participantRepository`. All the
+ * scheduling happens in the API. The client does no time-zone maths of its own -
+ * every local time on screen was worked out server-side, so there is only one
+ * copy of that logic to keep correct.
  */
 
 import { useCallback, useState, useSyncExternalStore } from "react";
@@ -26,6 +26,33 @@ function durationLabel(minutes: number): string {
   const rest = minutes % 60;
   const hourPart = hours === 1 ? "1 hour" : `${hours} hours`;
   return rest === 0 ? hourPart : `${hourPart} ${rest}m`;
+}
+
+/** How long to wait before giving up on the API. */
+const REQUEST_TIMEOUT_MS = 15_000;
+
+/**
+ * Turn a thrown value into something worth showing a user.
+ *
+ * The three failure modes look identical to `catch` but need different
+ * responses: a timeout means try again, an offline browser means check the
+ * connection, and a rejected request already carries a message explaining
+ * exactly what was wrong with it.
+ */
+function describeFailure(caught: unknown): string {
+  if (caught instanceof DOMException && caught.name === "AbortError") {
+    return "That took too long. Try a shorter date range or fewer participants.";
+  }
+
+  if (typeof navigator !== "undefined" && !navigator.onLine) {
+    return "You appear to be offline. Check your connection and try again.";
+  }
+
+  if (caught instanceof TypeError) {
+    return "Could not reach the server. Check your connection and try again.";
+  }
+
+  return caught instanceof Error ? caught.message : "Something went wrong.";
 }
 
 const controlClass =
@@ -67,24 +94,38 @@ export default function Home() {
     setLoading(true);
     setError(null);
 
+    // Without a timeout a stalled request leaves the button spinning forever
+    // with no way back other than reloading the page.
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
     try {
       const response = await fetch("/api/schedule/suggest", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ participants, durationMinutes, from, to, maxResults: 20 }),
+        signal: controller.signal,
       });
 
-      const payload = await response.json();
+      // A gateway or proxy error returns HTML, not JSON. Parsing it blind throws
+      // a syntax error that tells the user nothing about what went wrong.
+      const payload = await response.json().catch(() => null);
+
       if (!response.ok) {
-        const fields = payload.fields ? Object.values(payload.fields).join(". ") : null;
-        throw new Error(fields || payload.error || "Could not find meeting times");
+        // Field errors are the useful ones - they name what was wrong with the
+        // request rather than reporting that something was.
+        const fields = payload?.fields ? Object.values(payload.fields).join(". ") : null;
+        throw new Error(fields || payload?.error || `Request failed (${response.status})`);
       }
+
+      if (!payload) throw new Error("The server sent a response we could not read");
 
       setResult(payload as SuggestResponse);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Something went wrong");
+      setError(describeFailure(caught));
       setResult(null);
     } finally {
+      clearTimeout(timeout);
       setLoading(false);
     }
   }, [participants, durationMinutes, from, to]);

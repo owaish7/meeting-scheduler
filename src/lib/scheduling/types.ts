@@ -1,10 +1,10 @@
 /**
- * Domain types for meeting scheduling.
+ * Types for the scheduling logic.
  *
- * Convention used throughout this module: any field named `*Utc` or typed as
- * `Instant` is an absolute point in time (epoch milliseconds). Local wall-clock
- * time is only ever produced at the edges - when parsing participant input and
- * when rendering results. Nothing in between reasons about local time.
+ * Rule for this whole module: anything named `*Utc`, or typed as `Instant`, is
+ * an absolute moment in time (epoch milliseconds). Local wall-clock time only
+ * shows up at the edges - reading input and rendering output. Nothing in
+ * between deals with it.
  */
 
 /** An absolute point in time, as epoch milliseconds. */

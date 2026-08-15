@@ -1,10 +1,10 @@
 /**
  * Renders a scheduling result.
  *
- * The important case is the one where nothing fits. For the team in the brief no
- * 45-minute slot covers all four on any day, so the failure path is the one a
- * coordinator will actually spend time in: it leads with what is wrong, then a
- * plan that covers everyone, and only then the individual partial options.
+ * The case that matters is the one where nothing fits. For the team in the
+ * brief, no 45-minute slot covers all four on any day - so the failure path is
+ * where a coordinator actually spends their time. It leads with the numbers,
+ * then a plan that covers everyone, then the remaining options.
  */
 
 import type { SuggestResponse } from "@/lib/scheduling/types";

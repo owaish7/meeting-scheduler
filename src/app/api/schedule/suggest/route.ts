@@ -38,12 +38,15 @@ export async function POST(request: Request) {
     });
     return NextResponse.json(result);
   } catch (error) {
-    // SchedulingError covers input the schema cannot express on its own, such as
-    // an end date preceding the start. Anything else is a genuine fault.
+    // SchedulingError means the caller sent something invalid that the schema
+    // could not catch on its own - an end date before the start, say. Their
+    // problem, and the message is safe to hand back.
     if (error instanceof SchedulingError) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
 
+    // Anything else is our bug. The detail goes to the logs; the caller gets a
+    // generic message, because internal errors can leak stack traces and paths.
     console.error("Failed to compute suggestions", error);
     return NextResponse.json({ error: "Failed to compute suggestions" }, { status: 500 });
   }

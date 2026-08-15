@@ -1,19 +1,20 @@
 /**
- * Converts participants' local availability into absolute time.
+ * Turns local working hours into absolute timestamps.
  *
- * This is the only module that knows about time zones. It takes recurring local
- * wall-clock hours ("09:00-18:00, weekdays, Asia/Kolkata") and resolves them into
- * absolute intervals, then subtracts pre-existing meetings. Everything downstream
- * works purely with the resulting instants.
+ * This is the only file that knows about time zones. It takes something like
+ * "09:00-18:00 on weekdays, Asia/Kolkata", works out the actual moments that
+ * covers, and subtracts any existing meetings. Everything downstream just sees
+ * timestamps.
  *
- * Offsets are never computed by hand. Luxon resolves each local date against the
- * IANA database, so a window is anchored to the offset in force on that specific
- * date - which is what makes daylight-saving transitions come out right. The
- * supplied dataset depends on this: US DST begins on 8 Mar 2026, the first day of
- * the requested week, so San Francisco is on PDT (UTC-7) and not PST (UTC-8).
+ * Offsets are never calculated by hand. Luxon looks up each date in the IANA
+ * database, so a window uses the offset that was actually in force that day.
+ * That is what makes daylight saving come out right - and this dataset depends
+ * on it, since US DST starts 8 March 2026, the first day of the requested week.
+ * San Francisco is PDT (UTC-7) that week, not PST (UTC-8).
  */
 
 import { DateTime, IANAZone } from "luxon";
+import { SchedulingError } from "./errors";
 import { clip, normalize, subtract } from "./intervals";
 import type {
   BusyBlock,
@@ -32,11 +33,11 @@ export function isValidTimeZone(zone: string): boolean {
 /** Parse "HH:mm" into hour and minute. Throws on malformed input. */
 export function parseTimeOfDay(value: string): { hour: number; minute: number } {
   const match = /^(\d{1,2}):(\d{2})$/.exec(value.trim());
-  if (!match) throw new Error(`Invalid time "${value}", expected HH:mm`);
+  if (!match) throw new SchedulingError(`Invalid time "${value}", expected HH:mm`);
 
   const hour = Number(match[1]);
   const minute = Number(match[2]);
-  if (hour > 23 || minute > 59) throw new Error(`Invalid time "${value}"`);
+  if (hour > 23 || minute > 59) throw new SchedulingError(`Invalid time "${value}"`);
 
   return { hour, minute };
 }
@@ -51,7 +52,7 @@ export function parseTimeOfDay(value: string): { hour: number; minute: number } 
  */
 export function expandWorkingHours(participant: Participant, range: Interval): Interval[] {
   const zone = participant.timeZone;
-  if (!isValidTimeZone(zone)) throw new Error(`Unknown time zone "${zone}"`);
+  if (!isValidTimeZone(zone)) throw new SchedulingError(`Unknown time zone "${zone}"`);
 
   const { start, end, days } = participant.workingHours;
   const from = parseTimeOfDay(start);

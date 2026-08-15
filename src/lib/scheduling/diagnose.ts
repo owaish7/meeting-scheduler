@@ -1,11 +1,11 @@
 /**
  * What to say when the group cannot meet.
  *
- * For the dataset in the brief there is no 45-minute slot covering all four
- * people on any day, so returning an empty list would be correct and useless.
- * This module turns "no" into something a coordinator can act on: the best
- * partial options, a set of meetings that covers everyone without anyone working
- * outside their hours, and a plain explanation of what is blocking the group.
+ * For the team in the brief there is no 45-minute slot covering all four, on any
+ * day. Returning an empty list would be correct and useless. This turns "no"
+ * into something a coordinator can act on: the best partial options, a set of
+ * meetings that covers everyone without anyone working outside their hours, and
+ * an explanation of what is actually blocking it.
  */
 
 import { DateTime } from "luxon";

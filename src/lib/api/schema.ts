@@ -1,11 +1,10 @@
 /**
- * Request validation for the API routes.
+ * Validates incoming API requests.
  *
- * The domain layer assumes well-formed input - participants have real IANA zones,
- * times parse, durations are positive. That assumption only holds if something
- * enforces it at the boundary, which is this file's job. Validating here means the
- * scheduling code never has to defend itself against malformed data, and callers
- * get a specific message instead of a stack trace.
+ * The scheduling code assumes its input is sane - real IANA time zones, times
+ * that parse, positive durations. That is only true if something checks, and
+ * this is where it happens. The scheduling code then never has to defend
+ * itself, and callers get a useful message instead of a stack trace.
  */
 
 import { z } from "zod";
@@ -68,7 +67,11 @@ export const participantSchema = z.object({
   location: z.string().max(120).default(""),
   timeZone,
   workingHours: workingHoursSchema,
-  busy: z.array(busyBlockSchema).default([]),
+  // Bounded like every other list on this boundary. The interval algebra copes
+  // with far more than this - twenty thousand blocks resolve in well under a
+  // second - but an unbounded field is a hole whether or not it is currently
+  // exploitable, and a real calendar week does not hold hundreds of meetings.
+  busy: z.array(busyBlockSchema).max(500, "Too many existing meetings").default([]),
 });
 
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Expected a date in YYYY-MM-DD format");

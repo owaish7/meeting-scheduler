@@ -1,19 +1,19 @@
 /**
- * Where participants are stored.
+ * Where the participant list is stored.
  *
- * PLAN.md records the reasoning: the scheduling API is a pure function and holds
- * no state, because serverless instances cannot reliably share in-process memory
- * and a real database was not the best use of a fixed time budget when the
- * scheduling logic is what matters. The browser owns the participant list.
+ * There is no database - the API is a pure function and keeps no state. Reasons
+ * are in PLAN.md and the README: serverless instances do not reliably share
+ * memory, and a database was not the best use of a 4-hour budget. So the browser
+ * owns the list.
  *
- * This interface is the seam that decision was traded against. Swapping in a
- * database means writing one more implementation of `ParticipantRepository`;
- * nothing in the domain layer or the UI needs to know which one it is talking to.
+ * This interface is the seam that decision leans on. Adding Postgres means
+ * writing one more implementation of `ParticipantRepository` - nothing else
+ * needs to know which one it is talking to.
  *
- * The store exposes `subscribe`/`getSnapshot` so React can read it through
- * `useSyncExternalStore`. Loading it inside an effect instead would render the
- * seed list first and then replace it, which both flickers and produces a
- * hydration mismatch when the stored list differs from the seed.
+ * It exposes `subscribe`/`getSnapshot` so React can read it via
+ * `useSyncExternalStore`. Loading in an effect instead would render the seed
+ * list and then swap it, which flickers and breaks hydration when the stored
+ * list differs from the seed.
  */
 
 import type { Participant } from "./scheduling/types";

@@ -1,16 +1,15 @@
 /**
- * One suggested meeting time, shown in every participant's local time.
+ * One suggested meeting time, shown in everyone's local time.
  *
- * Everyone is listed, not just the people who can attend - when no slot suits
- * the whole group, who is missing and why is the information the coordinator
- * needs, so it belongs on the card rather than behind an interaction.
+ * Everybody is listed, not just the people who can attend. When no time suits
+ * the whole group, who is missing and why is exactly what the coordinator needs,
+ * so it belongs on the card rather than hidden behind a click.
  *
- * That stops being true at scale. With a dozen participants a card listing all
- * of them at full size runs past the height of a laptop screen, and the handful
- * who can actually attend get lost among the ten who cannot. So attendees are
- * separated from absentees, the rows flow into columns as width allows, and for
- * larger groups the absentees collapse behind a count that still says how many
- * there are.
+ * That stops working at scale. With a dozen people, a card listing everyone at
+ * full size is taller than a laptop screen, and the few who can attend get lost
+ * among the ten who cannot. So people who can attend are separated from those
+ * who cannot, and past six participants the second group collapses behind a
+ * count.
  */
 
 import type { ParticipantSlotView, Slot } from "@/lib/scheduling/types";

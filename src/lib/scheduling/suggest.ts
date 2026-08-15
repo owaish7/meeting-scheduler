@@ -1,14 +1,15 @@
 /**
- * The scheduling entry point.
+ * Entry point for the scheduling logic.
  *
- * A single pure function: participants and constraints in, suggestions out. No
- * I/O, no framework types, no persistence. The API route is a thin wrapper that
- * validates input and serialises the result, which keeps the part worth testing
- * independent of how it happens to be delivered.
+ * One pure function: participants and constraints in, suggestions out. No
+ * database, no framework types, no state. The API route around it just
+ * validates input and returns JSON - so the part actually worth testing does not
+ * care how it gets called.
  */
 
 import { DateTime } from "luxon";
 import { describeTimelineWindow } from "./availability";
+import { SchedulingError } from "./errors";
 import { buildDiagnosis, buildSplitPlan } from "./diagnose";
 import { collapseRepeats, rankRuns, sweep, toSlot } from "./solver";
 import type { Interval, SuggestRequest, SuggestResponse, TimelineWindow } from "./types";
@@ -20,7 +21,7 @@ const DEFAULT_MAX_RESULTS = 10;
 /** Guards against a request that would sweep an unreasonable number of positions. */
 export const MAX_RANGE_DAYS = 60;
 
-export class SchedulingError extends Error {}
+export { SchedulingError };
 
 /**
  * Resolve an ISO date to an absolute instant.

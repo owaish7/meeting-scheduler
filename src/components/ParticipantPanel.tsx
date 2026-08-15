@@ -1,11 +1,11 @@
 "use client";
 
 /**
- * The participant list and the form for adding to it.
+ * The participant list, and the form for adding to it.
  *
- * Time zones are chosen from the browser's own IANA list rather than typed, since
- * a mistyped zone is the single easiest way to get silently wrong results, and
- * "Asia/Bangalore" looks entirely plausible until it fails.
+ * Time zones are picked from the browser's own IANA list rather than typed. A
+ * mistyped zone is the easiest way to get silently wrong results, and
+ * "Asia/Bangalore" looks completely plausible right up until it fails.
  */
 
 import { useMemo, useState } from "react";

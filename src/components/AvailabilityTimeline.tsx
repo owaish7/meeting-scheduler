@@ -1,15 +1,12 @@
 /**
- * Everyone's working day drawn against one 24-hour UTC axis.
+ * Everyone's working day on a single 24-hour UTC scale.
  *
- * The rest of the app states the overlap in words - "Sara (13:00-22:00 UTC) and
- * Jack (23:00-08:00 UTC) never overlap". That is precise and asks the reader to
- * take it on trust. Drawn on a shared scale the same fact is immediate: no
- * vertical line passes through every bar, and the gap between the two ends of
- * the day is plainly visible.
+ * The rest of the app says it in words - "Sara (13:00-22:00 UTC) and Jack
+ * (23:00-08:00 UTC) never overlap". Accurate, but you have to take it on trust.
+ * Drawn on one scale it is obvious: no vertical line passes through every bar.
  *
- * It is only rendered when no single time works. A successful search needs no
- * chart: the slot card already gives the answer in each participant's own
- * hours, and drawing the overlap as well would restate what the reader has.
+ * Only shown when no time works. A successful search needs no chart - the
+ * result card already gives the answer in everyone's local time.
  */
 
 import type { TimelineWindow } from "@/lib/scheduling/types";

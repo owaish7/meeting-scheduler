@@ -1,12 +1,11 @@
 /**
- * Finds meeting slots across participants.
+ * Finds the meeting slots.
  *
- * The search is a straightforward sweep: step a candidate window across the
- * requested range and, at each position, collect everyone who is free for the
- * whole duration. Cleverness here would buy nothing - a week at 15-minute
- * granularity is a few hundred positions - and the sweep has the useful property
- * that partial matches fall out of the same pass as full ones, which is what the
- * no-match fallback is built from.
+ * The search is a simple sweep: slide a candidate window across the date range
+ * and, at each position, note who is free for the whole meeting. Nothing clever
+ * is needed - a week at 15-minute steps is only a few hundred positions - and a
+ * plain sweep has a useful side effect: partial matches come out of the same
+ * pass as full ones, which is what the no-match fallback is built from.
  */
 
 import { DateTime } from "luxon";

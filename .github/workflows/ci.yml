@@ -1,0 +1,42 @@
+# Runs the same checks locally required before a change is considered done.
+#
+# The scheduling engine's correctness is not visually obvious - that San
+# Francisco resolves to PDT during the requested week, or that the brief's team
+# yields exactly three viable pairings, is the kind of thing that breaks quietly.
+# Enforcing the suite on every push is what keeps those guarantees real rather
+# than a claim in the README.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      # `npm ci` rather than `npm install`: it installs exactly the lockfile and
+      # fails if the two have diverged, so CI cannot pass against dependencies
+      # that would not be installed on a clean checkout.
+      - run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Type check
+        run: npm run typecheck
+
+      - name: Test
+        run: npm test
+
+      - name: Build
+        run: npm run build

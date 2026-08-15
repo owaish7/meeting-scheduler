@@ -3,38 +3,43 @@
 Finds meeting times across time zones for a distributed team — and returns something
 useful when no single time works for everyone.
 
-Built for the Fenmo technical assessment. `PLAN.md` was written and committed before any
-application code and records the reasoning behind the decisions summarised here.
+`PLAN.md` was written and committed before any application code, and records the
+reasoning behind the decisions below.
 
 ---
 
 ## The problem, and what the app actually does
 
-The brief supplies four people and asks for a 45-minute slot during 8–14 March 2026:
+The brief gives four people and asks for a 45-minute slot during 8–14 March 2026.
 
-| Person | Location | Available (local) |
-|---|---|---|
-| Maya | Bangalore | 09:00–18:00 |
-| Tom | London | 08:00–17:00 |
-| Sara | San Francisco | 06:00–15:00 |
-| Jack | Sydney | 10:00–19:00 |
+**There is no such slot.** Put everyone on one clock and the reason is obvious:
 
-**There is no such slot.** Converted to a single absolute timeline, Sara's earliest start
-(13:00 UTC) falls after Jack's latest end (08:00 UTC), so those two can never share a
-working minute — on any day, at any duration. The most any single meeting can reach is
-**two of the four**.
+| Person | Location | Local hours | In UTC |
+|---|---|---|---|
+| Maya | Bangalore | 09:00–18:00 | 03:30–12:30 |
+| Tom | London | 08:00–17:00 | 08:00–17:00 |
+| Sara | San Francisco | 06:00–15:00 | 13:00–22:00 |
+| Jack | Sydney | 10:00–19:00 | 23:00–08:00 *(crosses midnight)* |
 
-Returning an empty list would be correct and useless, so the app answers with three things
-instead:
+Sara starts at 13:00 UTC. Jack finishes at 08:00 UTC. They are never both at their
+desk — not on any day, not for any meeting length. The best any single meeting can
+do is **2 of the 4**.
 
-1. **A split plan** — the fewest meetings that cover everyone with nobody outside their
-   normal hours. Here that is two meetings: Maya + Jack, and Tom + Sara.
-2. **The best single meeting** — highest-coverage options, each naming who is missing and
-   why ("8h 30m before their 06:00 start").
-3. **A diagnosis** — which pairs are structurally incompatible, and what forcing a single
-   all-hands would actually cost: **5h 45m** of out-of-hours time across the group, with one
-   person carrying 3h of it. Stated as a fact so the coordinator can reject the idea on
-   evidence. Deciding who absorbs that is not the scheduler's call.
+An empty screen would be technically correct and completely useless, so the app
+answers with four things instead:
+
+1. **The numbers up front** — best single meeting (2 of 4), meetings needed to
+   include everyone (2), and what one all-hands would cost (5h 45m of people
+   working outside their hours). You get the answer without reading a paragraph.
+2. **A split plan** — the fewest meetings that cover everyone with nobody working
+   outside their normal hours. Here: Maya + Jack, then Tom + Sara.
+3. **A chart of everyone's day on one UTC scale** — you can see that no vertical
+   line passes through all four bars, and that Jack's day runs off one end and
+   back in the other.
+4. **The reasons** — which pairs can never meet, and for any given slot, who is
+   missing and by how much ("8h 30m before their 06:00 start"). The cost of
+   forcing everyone into one meeting is shown as a fact, so a coordinator can
+   rule it out on the numbers. Deciding who takes the 3am call isn't the app's job.
 
 ## Running it
 
@@ -47,90 +52,115 @@ Open http://localhost:3000. The four participants from the brief are pre-loaded 
 date range defaults to the week in question, so the scenario above is one click away.
 
 ```bash
-npm test        # 56 tests covering the scheduling engine
+npm test        # 59 tests covering the scheduling engine
 npm run build   # production build
 ```
 
 ## Decisions
 
-**Everything internal is an absolute instant; local time exists only at the edges.**
-Wall-clock times are converted to epoch milliseconds on the way in and rendered back on the
-way out, and nothing in between reasons about time zones. Overlap detection is then plain
-integer arithmetic that can be tested exhaustively. Most time-zone bugs come from mixing the
-two representations mid-logic; this makes that structurally difficult.
+**Work in UTC internally. Convert only at the edges.**
+Times come in as local wall-clock ("09:00 in Asia/Kolkata"), get converted to a
+UTC timestamp immediately, and only get converted back when rendering. Nothing
+in between touches time zones. That turns "do these people overlap?" into
+comparing numbers, which is easy to test and hard to get subtly wrong.
 
-**Luxon, and never manual offset arithmetic.** The requested week begins on 8 March 2026,
-the exact day US daylight saving starts, so San Francisco is on **PDT (UTC−7)** and not PST.
-Hardcoded offsets — or assuming March is still winter — shift Sara's entire window by an
-hour and silently corrupt every result involving her. There is a regression test pinning
-this, plus one pinning PST correctness before the transition.
+**Use Luxon. Never do offset maths by hand.**
+The requested week starts 8 March 2026 — the day US daylight saving begins. So
+San Francisco is on PDT (UTC−7), not PST (UTC−8). Hardcode the offset, or assume
+"March is winter", and every time shown for Sara is an hour off. Two tests pin
+this: PDT during the week, PST before it.
 
-**The API resolves every participant's local time server-side.** The client renders what it
-is given and performs no date maths. If the UI recomputed local times, that logic would
-eventually drift from the backend's.
+**The API returns local times already worked out.**
+The client just displays what it gets. If the UI did its own date maths, the two
+would drift apart eventually — and you'd have two places to fix a bug.
 
-**Contiguous results are merged.** A four-hour window at 15-minute granularity would
-otherwise produce sixteen near-identical rows. One row reading "13:00–17:00, Tom + Sara"
-is what a coordinator can use; the flexible range is shown on the card.
+**Merge adjacent results.**
+Searching a 4-hour window in 15-minute steps finds 16 valid start times. That's
+one option, not sixteen. They collapse into a single result showing the range you
+can move it within.
 
-**Options recurring on other days collapse into one.** Working hours repeat every weekday, so
-a week's search returns the same handful of choices once per day — fifteen results covering
-three actual options for this team. Each result now carries the other dates it applies to.
-Time of day is part of the grouping, so an option moved by a daylight-saving change stays
-separate rather than being folded into a date list that would misstate when it happens.
+**Collapse options that repeat on other days.**
+Working hours are the same every weekday, so a week's search returns the same few
+options five times over — 15 results for what is really 3 choices. Each result now
+lists the other days it also works on. Time of day is part of the grouping, so if
+a daylight-saving change moves an option to a different hour, it stays separate
+instead of being lumped in with days it doesn't match.
 
-**Slots are recommended from inside the window, not at its edge.** Taking the earliest valid
-start reliably produces the worst one — flush against the opening of somebody's day. Each
-run is scanned for the position with the most room either side, which is why the app suggests
-Maya at 10:00 rather than 09:00.
+**Don't suggest a time at the very edge of someone's day.**
+The earliest valid start is usually the worst one — it's the minute they log on.
+Each option is scanned for the spot with the most room on both sides, capped at an
+hour. That's why it suggests 10:00 rather than 09:00. When there's no room to
+spare, it just returns the only time that fits.
 
-**Each section answers exactly one question.** The split plan is assembled from the same
-options as the best-effort list, so those meetings would otherwise appear twice — once as the
-recommendation and again beneath it as an "alternative" to itself. The lower section lists
-only the options the plan did not use, and disappears when there are none.
+**Each section on the page answers one question.**
+The split plan is built from the same options as the list below it, so those
+meetings used to show up twice — once as the recommendation, once as an
+"alternative" to itself. The lower section now only shows options the plan didn't
+use, and disappears if there aren't any.
 
-**A planned meeting needs at least two people.** Without that floor, a pair who share no
-availability gets "covered" by a plan of two one-person meetings: everyone technically
-included, nobody able to meet anyone. Where no real meeting exists the plan is omitted and
-the diagnosis carries the explanation.
+**Only show the chart when it explains something.**
+The timeline appears when no time works, because that's when you need to see why.
+On a successful search it's hidden — the result card already tells you the answer
+in everyone's local time.
 
-**Minimum cover is computed exactly, not greedily.** Greedy set cover gets this dataset
-wrong: it takes Maya + Tom first, then needs two more meetings for Sara and Jack, who cannot
-share one — three meetings where two suffice. A breadth-first search over attendee bitmasks
-is exact and costs nothing at this scale, with a greedy fallback above 16 participants.
+**Flag a local date that differs from the meeting's date.**
+A 04:30 UTC meeting on Monday is Sunday evening in San Francisco. That's correct,
+but it looks like a bug, so it's labelled "(previous day)".
 
-**Validation lives at the boundary.** Zod validates every request, checking time zones
-against the real IANA database rather than a pattern — "Asia/Bangalore" is well-formed and
-does not exist. The domain layer can then assume well-formed input.
+**The result card changes shape with group size, not screen size.**
+Up to 6 people it's a full-width list, so all the times line up in one column and
+you can compare them at a glance. Past 6 that would run off the screen, so it
+switches to columns and folds the people who can't attend behind a count.
 
-### Persistence — a deliberate trade-off
+**A meeting needs at least 2 people.**
+Otherwise a group where nobody's hours overlap gets "covered" by a plan of
+one-person meetings — technically everyone's included, and completely useless.
+If there's no real meeting to suggest, we say so instead.
 
-The scheduling API is a **pure stateless function**: participants are supplied in the request
-body, and the browser owns the list via `localStorage`.
+**Compute the minimum set of meetings exactly, not greedily.**
+The standard greedy approach gets this dataset wrong: it picks Maya + Tom first,
+then needs two more meetings for Sara and Jack (who can't share one) — three
+meetings where two would do. A breadth-first search over the possible groupings
+gives the right answer and costs nothing at this size. Greedy is kept as a
+fallback above 16 people.
 
-Serverless instances cannot reliably share in-process memory, so server-side in-memory state
-would be quietly broken in production — worse than none. A real database is the right answer
-for a real deployment, but not the best use of a fixed time budget when the scheduling logic
-is the substance of the exercise. `ParticipantRepository` in `src/lib/repository.ts` is the
-seam: adding a database means writing one more implementation of that interface, with no
-change to the domain layer or the UI.
+**Validate at the API boundary.**
+Zod checks every request, including time zones against the real IANA list — note
+that "Asia/Bangalore" looks fine but doesn't exist. Everything downstream can then
+assume the data is sane.
+
+### Why there's no database
+
+The scheduling API is a pure function: you send it participants, it sends back
+suggestions. It stores nothing. The browser keeps the participant list in
+`localStorage`.
+
+Two reasons. Serverless functions don't reliably share memory between requests, so
+storing state in the server process would be quietly broken in production — worse
+than not storing it at all. And a real database wasn't the best use of a 4-hour
+budget when the scheduling logic is the point of the exercise.
+
+`ParticipantRepository` in `src/lib/repository.ts` is the seam. Adding Postgres
+means writing one more implementation of that interface — no changes to the
+scheduling code or the UI.
 
 ## Layout
 
 ```
-src/lib/scheduling/     Pure domain logic — no I/O, no framework, fully unit tested
-  intervals.ts            Interval algebra: merge, intersect, subtract, clip
-  availability.ts         Local recurring hours -> absolute intervals, minus busy blocks
-  solver.ts               Candidate sweep, contiguous-run merging, ranking
-  diagnose.ts             Blocking pairs, minimum-cover split plan, forced-meeting cost
+src/lib/scheduling/     The actual scheduling logic. No I/O, no framework, fully tested.
+  intervals.ts            Interval maths: merge, intersect, subtract, clip
+  availability.ts         Local working hours -> UTC intervals, minus existing meetings
+  solver.ts               Searches for slots, merges and ranks them
+  diagnose.ts             Why it failed, the split plan, the cost of forcing it
   suggest.ts              Entry point
-src/lib/api/schema.ts   Zod request validation
-src/app/api/            Thin HTTP layer: validate, delegate, serialise
+src/lib/api/schema.ts   Zod validation
+src/app/api/            HTTP layer: validate, call the above, return JSON
 src/components/         UI
 ```
 
-The domain layer takes data and returns data. That is what makes it testable, and what would
-let it move behind a queue or a scheduled job unchanged.
+The scheduling code takes data and returns data — no database calls, no React, no
+`Request` objects. That's what makes it easy to test, and it would work unchanged
+behind a queue or a cron job.
 
 ## API
 
@@ -147,34 +177,40 @@ let it move behind a queue or a scheduled job unchanged.
 }
 ```
 
-Returns `fullMatches`, and when that is empty, `bestEffort`, `splitPlan` and `diagnosis`.
-Every slot carries each participant's local date, start, end, zone abbreviation, and a
-human-readable reason when they cannot attend.
+Returns `fullMatches`. If that's empty, you also get `bestEffort`, `splitPlan` and
+`diagnosis`. `timeline` comes back either way — everyone's working day as UTC minutes,
+for the chart.
 
-**`GET /api/participants`** returns the seed team. **`POST /api/participants`** validates a
-participant, so validation rules live in one place rather than being duplicated client-side.
+Every slot includes, per participant: their local date and times, the zone abbreviation
+for that date, whether their local date differs from the meeting's, and why they can't
+make it if they can't.
+
+**`GET /api/participants`** returns the starting team. **`POST /api/participants`**
+validates one — so the validation rules live in one place instead of being copied into
+the client.
 
 ## Tests
 
-56 tests, aimed at the domain layer where the risk is:
+59 tests, all aimed at the scheduling logic — that's where the bugs would be.
 
-- Interval algebra edge cases — touching, nested, zero-length, adjacent, split-by-hole.
-- Sara resolves to PDT on 9 March 2026 and PST on 9 February 2026.
-- Sydney windows that begin on the previous UTC day.
-- Overnight working hours that cross local midnight.
-- A golden test asserting the brief's dataset yields zero full matches, exactly the three
-  viable pairings, and a two-meeting split plan covering everyone.
-- Options recurring on other weekdays collapse to one result carrying those dates.
-- A pair with no shared availability produces no split plan, rather than a plan of
-  one-person meetings.
-- Pre-existing meetings correctly subtracting from availability.
+- Interval maths: intervals that touch, nest, overlap, or get split in half.
+- Sara is PDT on 9 March 2026, and PST on 9 February. The daylight-saving check.
+- Sydney's working day starting on the previous UTC day.
+- Overnight hours (22:00–06:00) that cross local midnight.
+- The main one: the brief's four people produce zero full matches, exactly three
+  viable pairings, and a two-meeting plan covering everyone.
+- Local dates landing a day either side of the meeting's UTC date.
+- Repeated options collapsing into one result that lists the other days.
+- Two people who can never meet produce no plan, rather than two one-person meetings.
+- Existing meetings correctly removed from someone's availability.
 
-The golden test's expectations were derived by an independent exhaustive sweep before the
-solver was written, so they pin the real answer rather than the implementation's opinion.
+The expected numbers in that main test came from a separate brute-force script written
+before the solver existed. So they check the real answer, not whatever the code happens
+to produce.
 
 ## Knowingly unfinished
 
-- **No database.** Participants live in the browser. Reasoning above; the seam is in place.
+- **No database.** Participants live in the browser. Reasons above; the seam is in place.
 - **No authentication.** Anyone with the URL can use it. It is an internal coordinator tool
   with no stored data worth protecting.
 - **No calendar integration.** Pre-existing meetings are entered as data and supported by the
