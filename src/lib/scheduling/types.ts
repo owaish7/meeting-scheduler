@@ -152,6 +152,26 @@ export interface SuggestRequest {
   maxResults?: number;
 }
 
+/**
+ * One participant's working day placed on a shared 24-hour UTC axis.
+ *
+ * Lets the UI draw everyone's availability against a common scale, which turns
+ * "Sara and Jack never overlap" from a claim into something visible. Minutes are
+ * measured from UTC midnight; when `utcEndMinute` is less than `utcStartMinute`
+ * the window crosses midnight and draws as two segments - the usual case for
+ * Sydney, whose working day starts the previous UTC day.
+ */
+export interface TimelineWindow {
+  participantId: string;
+  name: string;
+  location: string;
+  timeZone: string;
+  localStart: string;
+  localEnd: string;
+  utcStartMinute: number;
+  utcEndMinute: number;
+}
+
 export interface SuggestResponse {
   /** Slots where every participant can attend. Empty when the group cannot meet. */
   fullMatches: Slot[];
@@ -161,6 +181,8 @@ export interface SuggestResponse {
   splitPlan?: SplitPlan;
   /** Why no full match exists, present only when `fullMatches` is empty. */
   diagnosis?: Diagnosis;
+  /** Everyone's working day on a shared UTC axis, for visualising the overlap. */
+  timeline: TimelineWindow[];
   meta: {
     durationMinutes: number;
     granularityMinutes: number;

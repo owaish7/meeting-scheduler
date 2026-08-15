@@ -8,9 +8,10 @@
  */
 
 import { DateTime } from "luxon";
+import { describeTimelineWindow } from "./availability";
 import { buildDiagnosis, buildSplitPlan } from "./diagnose";
 import { collapseRepeats, rankRuns, sweep, toSlot } from "./solver";
-import type { Interval, SuggestRequest, SuggestResponse } from "./types";
+import type { Interval, SuggestRequest, SuggestResponse, TimelineWindow } from "./types";
 
 const MINUTE = 60_000;
 const DEFAULT_GRANULARITY_MINUTES = 15;
@@ -80,6 +81,12 @@ export function suggest(request: SuggestRequest): SuggestResponse {
     participantCount: participants.length,
   };
 
+  // Returned in both outcomes: it explains a match as readily as it explains the
+  // absence of one, and is the only place the overlap itself is visible.
+  const timeline = participants
+    .map((participant) => describeTimelineWindow(participant, range))
+    .filter((window): window is TimelineWindow => window !== undefined);
+
   // Options that recur on other days are folded into one result each, so the
   // caller receives the distinct choices rather than one copy per weekday.
   const present = (runs: typeof ranked) =>
@@ -89,7 +96,7 @@ export function suggest(request: SuggestRequest): SuggestResponse {
 
   const fullRuns = ranked.filter((run) => run.attendeeIds.length === participants.length);
   if (fullRuns.length > 0) {
-    return { fullMatches: present(fullRuns), bestEffort: [], meta };
+    return { fullMatches: present(fullRuns), bestEffort: [], timeline, meta };
   }
 
   // Nothing covers the whole group, so the fallback becomes the answer.
@@ -100,6 +107,7 @@ export function suggest(request: SuggestRequest): SuggestResponse {
     bestEffort: present(ranked.filter((run) => run.attendeeIds.length === bestCoverage)),
     splitPlan: buildSplitPlan(ranked, participants, durationMs),
     diagnosis: buildDiagnosis(participants, range, durationMs, granularityMs, bestCoverage),
+    timeline,
     meta,
   };
 }

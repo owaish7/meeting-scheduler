@@ -7,8 +7,24 @@
  * plan that covers everyone, and only then the individual partial options.
  */
 
-import type { SuggestResponse } from "@/lib/scheduling/types";
+import type { Slot, SuggestResponse } from "@/lib/scheduling/types";
+import { AvailabilityTimeline } from "./AvailabilityTimeline";
 import { SlotCard } from "./SlotCard";
+
+/** The UTC minute range a slot occupies, for marking it on the timeline. */
+function highlightFor(slot: Slot | undefined) {
+  if (!slot) return undefined;
+
+  const start = new Date(slot.startUtc);
+  const end = new Date(slot.endUtc);
+  const startMinute = start.getUTCHours() * 60 + start.getUTCMinutes();
+  const endMinute = end.getUTCHours() * 60 + end.getUTCMinutes();
+
+  // A slot running past UTC midnight would need two bands; the axis already
+  // shows the working hours, so it is simply left unmarked rather than drawn wrong.
+  if (endMinute <= startMinute) return undefined;
+  return { startMinute, endMinute };
+}
 
 /** Blocking pairs shown before the rest are folded away. */
 const MAX_LISTED_BLOCKERS = 4;
@@ -31,7 +47,7 @@ function SectionHeading({ title, hint }: { title: string; hint?: string }) {
 }
 
 export function Results({ result }: { result: SuggestResponse }) {
-  const { fullMatches, bestEffort, splitPlan, diagnosis, meta } = result;
+  const { fullMatches, bestEffort, splitPlan, diagnosis, timeline, meta } = result;
 
   /*
    * The split plan is assembled from the same options as the best-effort list,
@@ -49,8 +65,8 @@ export function Results({ result }: { result: SuggestResponse }) {
 
   if (fullMatches.length > 0) {
     return (
-      <section>
-        <div className="mb-4 rounded-lg border border-[var(--border)] bg-[var(--ok-soft)] p-4">
+      <section className="space-y-6">
+        <div className="rounded-lg border border-[var(--border)] bg-[var(--ok-soft)] p-4">
           <h2 className="font-semibold text-[var(--ok)]">
             {fullMatches.length === 1
               ? "1 time works for everyone"
@@ -60,6 +76,8 @@ export function Results({ result }: { result: SuggestResponse }) {
             Every participant is inside their normal hours, with no clashes.
           </p>
         </div>
+
+        <AvailabilityTimeline windows={timeline} highlight={highlightFor(fullMatches[0])} />
 
         <div className="space-y-3">
           {fullMatches.map((slot) => (
@@ -119,6 +137,11 @@ export function Results({ result }: { result: SuggestResponse }) {
           </>
         )}
       </div>
+
+      {/* Placed immediately after the explanation: it is the same finding drawn
+          rather than described, and shows at a glance that no vertical line
+          crosses every bar. */}
+      <AvailabilityTimeline windows={timeline} />
 
       {splitPlan && splitPlan.meetings.length > 0 && (
         <div>

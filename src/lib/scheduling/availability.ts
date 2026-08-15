@@ -21,6 +21,7 @@ import type {
   Interval,
   Participant,
   ParticipantSlotView,
+  TimelineWindow,
   UnavailabilityKind,
 } from "./types";
 
@@ -74,6 +75,37 @@ export function expandWorkingHours(participant: Participant, range: Interval): I
   }
 
   return clip(normalize(windows), range);
+}
+
+/**
+ * Place a participant's working day on a shared 24-hour UTC axis.
+ *
+ * Uses the first window falling in the range, so the offset is the one actually
+ * in force then rather than a nominal one - during the requested week that is
+ * what puts San Francisco at 13:00-22:00 UTC on PDT rather than an hour later.
+ */
+export function describeTimelineWindow(
+  participant: Participant,
+  range: Interval,
+): TimelineWindow | undefined {
+  const windows = expandWorkingHours(participant, range);
+  if (windows.length === 0) return undefined;
+
+  const zone = participant.timeZone;
+  const first = windows[0];
+  const start = DateTime.fromMillis(first.start, { zone: "utc" });
+  const end = DateTime.fromMillis(first.end, { zone: "utc" });
+
+  return {
+    participantId: participant.id,
+    name: participant.name,
+    location: participant.location,
+    timeZone: zone,
+    localStart: DateTime.fromMillis(first.start, { zone }).toFormat("HH:mm"),
+    localEnd: DateTime.fromMillis(first.end, { zone }).toFormat("HH:mm"),
+    utcStartMinute: start.hour * 60 + start.minute,
+    utcEndMinute: end.hour * 60 + end.minute,
+  };
 }
 
 /** A participant's pre-existing meetings as absolute intervals. */
