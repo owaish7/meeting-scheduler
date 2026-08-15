@@ -18,7 +18,13 @@ export const metadata: Metadata = {
     "Find meeting times across time zones, and get a useful answer when no single time works.",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+/*
+ * Props are declared explicitly rather than using Next's generated `LayoutProps`
+ * helper. That helper is written into `.next/types` during a build, so it exists
+ * on a machine that has already run one and not on a clean checkout - which made
+ * `tsc --noEmit` pass locally and fail in CI.
+ */
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html
       lang="en"
