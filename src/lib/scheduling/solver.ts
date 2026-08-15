@@ -165,11 +165,52 @@ export function pickRecommendedStart(
   return best;
 }
 
+/** A representative option together with the other dates it recurs on. */
+export interface RunGroup {
+  representative: CandidateRun;
+  repeatDates: string[];
+}
+
+/**
+ * Collapse options that recur identically on other days.
+ *
+ * Working hours repeat every weekday, so a week's search returns the same handful
+ * of options once per day - fifteen results covering three actual choices for the
+ * team in the brief. Grouping by attendees and time of day reduces that to the
+ * three real options, each carrying the dates it also applies to.
+ *
+ * Time of day is part of the key deliberately. If a daylight-saving change moves
+ * an option to a different UTC time midway through the range, it is genuinely a
+ * different option and stays a separate result rather than being folded into a
+ * list of dates that would misstate when it happens.
+ */
+export function collapseRepeats(runs: CandidateRun[]): RunGroup[] {
+  const groups = new Map<string, RunGroup>();
+
+  for (const run of runs) {
+    const start = run.recommendedStart ?? run.firstStart;
+    const at = DateTime.fromMillis(start, { zone: "utc" });
+    const key = `${run.attendeeIds.join("|")}@${at.toFormat("HH:mm")}`;
+
+    const existing = groups.get(key);
+    if (existing) {
+      // Runs arrive ranked, so the first occurrence is the best-timed one and
+      // later days become repeats of it.
+      existing.repeatDates.push(at.toISODate() ?? "");
+    } else {
+      groups.set(key, { representative: run, repeatDates: [] });
+    }
+  }
+
+  return [...groups.values()];
+}
+
 /** Turn a run into an API-facing slot, resolved into every participant's local time. */
 export function toSlot(
   run: CandidateRun,
   participants: Participant[],
   durationMs: number,
+  repeatsOn: string[] = [],
 ): Slot {
   const start = run.recommendedStart ?? run.firstStart;
   const end = start + durationMs;
@@ -188,6 +229,7 @@ export function toSlot(
     participants: participants.map((p) =>
       describeParticipantSlot(p, start, end, attending.has(p.id)),
     ),
+    repeatsOn,
   };
 }
 

@@ -92,6 +92,13 @@ export interface Slot {
   /** True when every requested participant can attend. */
   isFullMatch: boolean;
   participants: ParticipantSlotView[];
+  /**
+   * Other dates (ISO, UTC) where this same option recurs identically - same
+   * people, same time of day. Recurring availability repeats every working day,
+   * so listing those dates here collapses what would otherwise be one
+   * near-identical result per day.
+   */
+  repeatsOn: string[];
 }
 
 /** A single meeting within a split plan. */

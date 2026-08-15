@@ -54,9 +54,23 @@ describe("the team from the brief", () => {
     expect(pairings).toEqual(new Set(["Jack + Maya", "Maya + Tom", "Sara + Tom"]));
   });
 
-  it("returns one option per pairing per weekday", () => {
-    // Three pairings across five weekdays, with no weekend availability.
-    expect(result.bestEffort).toHaveLength(15);
+  it("returns each distinct option once rather than once per weekday", () => {
+    // The same three pairings recur every weekday, so fifteen raw results
+    // collapse to the three choices a coordinator is actually picking between.
+    expect(result.bestEffort).toHaveLength(3);
+  });
+
+  it("names the other dates each option recurs on", () => {
+    for (const slot of result.bestEffort) {
+      // Monday is the representative; the remaining four weekdays are listed.
+      expect(slot.repeatsOn).toHaveLength(4);
+      expect(slot.repeatsOn).toEqual([
+        "2026-03-10",
+        "2026-03-11",
+        "2026-03-12",
+        "2026-03-13",
+      ]);
+    }
   });
 
   it("identifies San Francisco and Sydney as the structural blocker", () => {

@@ -22,6 +22,16 @@ function utcLabel(iso: string): string {
   });
 }
 
+/** "2026-03-10" -> "Tue 10 Mar", for the list of dates an option recurs on. */
+function dayLabel(isoDate: string): string {
+  return new Date(`${isoDate}T00:00:00Z`).toLocaleDateString("en-GB", {
+    timeZone: "UTC",
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+  });
+}
+
 function timeOnly(iso: string): string {
   return new Date(iso).toLocaleString("en-GB", {
     timeZone: "UTC",
@@ -108,6 +118,12 @@ export function SlotCard({ slot, label }: SlotCardProps) {
           <ParticipantRow key={view.participantId} view={view} />
         ))}
       </div>
+
+      {slot.repeatsOn.length > 0 && (
+        <p className="mt-3 border-t border-[var(--border)] pt-2.5 text-xs text-[var(--muted)]">
+          Also available {slot.repeatsOn.map(dayLabel).join(", ")}
+        </p>
+      )}
     </article>
   );
 }

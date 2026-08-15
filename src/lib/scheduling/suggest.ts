@@ -9,7 +9,7 @@
 
 import { DateTime } from "luxon";
 import { buildDiagnosis, buildSplitPlan } from "./diagnose";
-import { rankRuns, sweep, toSlot } from "./solver";
+import { collapseRepeats, rankRuns, sweep, toSlot } from "./solver";
 import type { Interval, SuggestRequest, SuggestResponse } from "./types";
 
 const MINUTE = 60_000;
@@ -80,13 +80,16 @@ export function suggest(request: SuggestRequest): SuggestResponse {
     participantCount: participants.length,
   };
 
+  // Options that recur on other days are folded into one result each, so the
+  // caller receives the distinct choices rather than one copy per weekday.
+  const present = (runs: typeof ranked) =>
+    collapseRepeats(runs)
+      .slice(0, maxResults)
+      .map((group) => toSlot(group.representative, participants, durationMs, group.repeatDates));
+
   const fullRuns = ranked.filter((run) => run.attendeeIds.length === participants.length);
   if (fullRuns.length > 0) {
-    return {
-      fullMatches: fullRuns.slice(0, maxResults).map((run) => toSlot(run, participants, durationMs)),
-      bestEffort: [],
-      meta,
-    };
+    return { fullMatches: present(fullRuns), bestEffort: [], meta };
   }
 
   // Nothing covers the whole group, so the fallback becomes the answer.
@@ -94,10 +97,7 @@ export function suggest(request: SuggestRequest): SuggestResponse {
 
   return {
     fullMatches: [],
-    bestEffort: ranked
-      .filter((run) => run.attendeeIds.length === bestCoverage)
-      .slice(0, maxResults)
-      .map((run) => toSlot(run, participants, durationMs)),
+    bestEffort: present(ranked.filter((run) => run.attendeeIds.length === bestCoverage)),
     splitPlan: buildSplitPlan(ranked, participants, durationMs),
     diagnosis: buildDiagnosis(participants, range, durationMs, granularityMs, bestCoverage),
     meta,
