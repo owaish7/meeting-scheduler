@@ -47,7 +47,7 @@ Open http://localhost:3000. The four participants from the brief are pre-loaded 
 date range defaults to the week in question, so the scenario above is one click away.
 
 ```bash
-npm test        # 52 tests covering the scheduling engine
+npm test        # 56 tests covering the scheduling engine
 npm run build   # production build
 ```
 
@@ -73,10 +73,26 @@ eventually drift from the backend's.
 otherwise produce sixteen near-identical rows. One row reading "13:00–17:00, Tom + Sara"
 is what a coordinator can use; the flexible range is shown on the card.
 
+**Options recurring on other days collapse into one.** Working hours repeat every weekday, so
+a week's search returns the same handful of choices once per day — fifteen results covering
+three actual options for this team. Each result now carries the other dates it applies to.
+Time of day is part of the grouping, so an option moved by a daylight-saving change stays
+separate rather than being folded into a date list that would misstate when it happens.
+
 **Slots are recommended from inside the window, not at its edge.** Taking the earliest valid
 start reliably produces the worst one — flush against the opening of somebody's day. Each
 run is scanned for the position with the most room either side, which is why the app suggests
 Maya at 10:00 rather than 09:00.
+
+**Each section answers exactly one question.** The split plan is assembled from the same
+options as the best-effort list, so those meetings would otherwise appear twice — once as the
+recommendation and again beneath it as an "alternative" to itself. The lower section lists
+only the options the plan did not use, and disappears when there are none.
+
+**A planned meeting needs at least two people.** Without that floor, a pair who share no
+availability gets "covered" by a plan of two one-person meetings: everyone technically
+included, nobody able to meet anyone. Where no real meeting exists the plan is omitted and
+the diagnosis carries the explanation.
 
 **Minimum cover is computed exactly, not greedily.** Greedy set cover gets this dataset
 wrong: it takes Maya + Tom first, then needs two more meetings for Sara and Jack, who cannot
@@ -140,7 +156,7 @@ participant, so validation rules live in one place rather than being duplicated 
 
 ## Tests
 
-52 tests, aimed at the domain layer where the risk is:
+56 tests, aimed at the domain layer where the risk is:
 
 - Interval algebra edge cases — touching, nested, zero-length, adjacent, split-by-hole.
 - Sara resolves to PDT on 9 March 2026 and PST on 9 February 2026.
@@ -148,6 +164,9 @@ participant, so validation rules live in one place rather than being duplicated 
 - Overnight working hours that cross local midnight.
 - A golden test asserting the brief's dataset yields zero full matches, exactly the three
   viable pairings, and a two-meeting split plan covering everyone.
+- Options recurring on other weekdays collapse to one result carrying those dates.
+- A pair with no shared availability produces no split plan, rather than a plan of
+  one-person meetings.
 - Pre-existing meetings correctly subtracting from availability.
 
 The golden test's expectations were derived by an independent exhaustive sweep before the
