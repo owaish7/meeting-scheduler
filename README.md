@@ -52,7 +52,7 @@ Open http://localhost:3000. The four participants from the brief are pre-loaded 
 date range defaults to the week in question, so the scenario above is one click away.
 
 ```bash
-npm test        # 59 tests covering the scheduling engine
+npm test        # 61 tests covering the scheduling engine
 npm run build   # production build
 ```
 
@@ -102,6 +102,14 @@ use, and disappears if there aren't any.
 The timeline appears when no time works, because that's when you need to see why.
 On a successful search it's hidden — the result card already tells you the answer
 in everyone's local time.
+
+**Existing meetings are entered in local time, like working hours.**
+A meeting is typed in as "10 March, 11:00 to 15:00" and means 11:00 where that
+person is. It gets converted in the same place as working hours, so the browser
+still does no time-zone maths. This is also how you express a split day: someone
+free 09:00-11:00 and 15:00-17:00 is someone working 09:00-17:00 with the middle
+blocked out. The interval maths already handled that, so it needed no new
+feature.
 
 **Flag a local date that differs from the meeting's date.**
 A 04:30 UTC meeting on Monday is Sunday evening in San Francisco. That's correct,
@@ -191,7 +199,7 @@ the client.
 
 ## Tests
 
-59 tests, all aimed at the scheduling logic — that's where the bugs would be.
+61 tests, all aimed at the scheduling logic — that's where the bugs would be.
 
 - Interval maths: intervals that touch, nest, overlap, or get split in half.
 - Sara is PDT on 9 March 2026, and PST on 9 February. The daylight-saving check.
@@ -203,6 +211,8 @@ the client.
 - Repeated options collapsing into one result that lists the other days.
 - Two people who can never meet produce no plan, rather than two one-person meetings.
 - Existing meetings correctly removed from someone's availability.
+- Blocking the middle of a day leaves two windows, and converts through the
+  participant's own zone rather than UTC.
 
 The expected numbers in that main test came from a separate brute-force script written
 before the solver existed. So they check the real answer, not whatever the code happens
@@ -213,13 +223,11 @@ to produce.
 - **No database.** Participants live in the browser. Reasons above; the seam is in place.
 - **No authentication.** Anyone with the URL can use it. It is an internal coordinator tool
   with no stored data worth protecting.
-- **No calendar integration.** Pre-existing meetings are entered as data and supported by the
-  engine and the API, but the UI has no form for adding them — the seeded team has none, and
-  building that form was worth less than getting the no-match path right. Busy blocks sent
-  directly to the API are honoured and tested.
-- **One working-hours window per participant.** No per-day variation, and no split days
-  (a lunch break, for example). The interval algebra already supports multiple windows;
-  only the input model assumes one.
+- **No calendar integration.** Existing meetings are typed in by hand. There is no Google or
+  Outlook sync, which is what a real deployment would want.
+- **One working-hours pattern per participant.** The same hours every working day — you can't
+  say "Maya starts at 11:00 on Fridays". A split day *is* supported, by blocking the middle
+  out as a meeting.
 - **No recurring meetings, invitations, or notifications.** Out of scope by choice — the
   brief asks for depth over breadth.
 - **Fixed light theme.** Predictable contrast was preferred over following the system theme

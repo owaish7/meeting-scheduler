@@ -151,6 +151,22 @@ export default function Home() {
             participants={participants}
             onAdd={(participant) => updateParticipants((current) => [...current, participant])}
             onRemove={(id) => updateParticipants((current) => current.filter((p) => p.id !== id))}
+            onAddMeeting={(participantId, block) =>
+              updateParticipants((current) =>
+                current.map((p) =>
+                  p.id === participantId ? { ...p, busy: [...p.busy, block] } : p,
+                ),
+              )
+            }
+            onRemoveMeeting={(participantId, blockId) =>
+              updateParticipants((current) =>
+                current.map((p) =>
+                  p.id === participantId
+                    ? { ...p, busy: p.busy.filter((b) => b.id !== blockId) }
+                    : p,
+                ),
+              )
+            }
             onReset={() => {
               participantRepository.reset();
               setResult(null);

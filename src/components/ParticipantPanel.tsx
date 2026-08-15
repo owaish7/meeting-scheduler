@@ -9,8 +9,9 @@
  */
 
 import { useMemo, useState } from "react";
-import type { Participant, Weekday } from "@/lib/scheduling/types";
+import type { BusyBlock, Participant, Weekday } from "@/lib/scheduling/types";
 import { WEEKDAYS } from "@/lib/scheduling/types";
+import { DEFAULT_RANGE } from "@/lib/seed";
 
 /** Every zone the runtime knows about, with a sensible fallback for older engines. */
 function supportedTimeZones(): string[] {
@@ -50,10 +51,160 @@ const DAY_LABELS: { value: Weekday; label: string; name: string }[] = [
 const inputClass =
   "w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-2.5 py-1.5 text-sm outline-none focus:border-[var(--accent)]";
 
+/**
+ * Existing meetings for one participant, and the form for adding them.
+ *
+ * Times are entered the way the person reads their own calendar - "10 March,
+ * 11:00 to 15:00" means 11:00 where they are. Nothing here converts anything;
+ * the block is stored as local wall-clock and resolved against their zone by
+ * the scheduling code, same as their working hours.
+ *
+ * This is also how a split day is expressed. Someone free 09:00-11:00 and then
+ * 15:00-17:00 is someone working 09:00-17:00 with the middle blocked out, which
+ * the interval maths already handles.
+ */
+function MeetingList({
+  participant,
+  onAdd,
+  onRemove,
+}: {
+  participant: Participant;
+  onAdd: (block: BusyBlock) => void;
+  onRemove: (blockId: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [title, setTitle] = useState("");
+  const [date, setDate] = useState(DEFAULT_RANGE.from);
+  const [start, setStart] = useState("11:00");
+  const [end, setEnd] = useState("15:00");
+  const [error, setError] = useState<string | null>(null);
+
+  function submit(event: React.FormEvent) {
+    event.preventDefault();
+    if (!title.trim()) return setError("Give the meeting a name");
+    if (start === end) return setError("Start and end cannot be the same");
+
+    onAdd({
+      id: `${participant.id}-${Date.now()}`,
+      title: title.trim(),
+      date,
+      start,
+      end,
+    });
+
+    setTitle("");
+    setError(null);
+    setOpen(false);
+  }
+
+  return (
+    <div className="mt-2 border-t border-[var(--border)] pt-2">
+      {participant.busy.length > 0 && (
+        <ul className="mb-1.5 space-y-1">
+          {participant.busy.map((block) => (
+            <li
+              key={block.id}
+              className="flex items-baseline justify-between gap-2 text-xs text-[var(--muted)]"
+            >
+              <span className="min-w-0 truncate">{block.title}</span>
+              <span className="flex shrink-0 items-baseline gap-2">
+                <span className="tabular">
+                  {block.date.slice(5)} · {block.start}–{block.end}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => onRemove(block.id)}
+                  aria-label={`Remove ${block.title} from ${participant.name}`}
+                  className="hover:text-[var(--warn)]"
+                >
+                  ×
+                </button>
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {open ? (
+        <form onSubmit={submit} className="space-y-1.5">
+          <input
+            className={inputClass}
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="Meeting name"
+            aria-label="Meeting name"
+            autoFocus
+          />
+          <div className="grid grid-cols-3 gap-1.5">
+            <input
+              type="date"
+              className={inputClass}
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              aria-label="Date"
+            />
+            <input
+              type="time"
+              className={inputClass}
+              value={start}
+              onChange={(e) => setStart(e.target.value)}
+              aria-label="Start time"
+            />
+            <input
+              type="time"
+              className={inputClass}
+              value={end}
+              onChange={(e) => setEnd(e.target.value)}
+              aria-label="End time"
+            />
+          </div>
+
+          {error && (
+            <p role="alert" className="text-xs text-[var(--warn)]">
+              {error}
+            </p>
+          )}
+
+          <p className="text-xs text-[var(--muted)]">Times are in {participant.location}.</p>
+
+          <div className="flex gap-2">
+            <button
+              type="submit"
+              className="rounded-md bg-[var(--accent)] px-2.5 py-1 text-xs font-medium text-white"
+            >
+              Add
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setOpen(false);
+                setError(null);
+              }}
+              className="px-2 py-1 text-xs text-[var(--muted)]"
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="text-xs text-[var(--muted)] hover:text-[var(--accent)]"
+        >
+          + Existing meeting
+        </button>
+      )}
+    </div>
+  );
+}
+
 interface ParticipantPanelProps {
   participants: Participant[];
   onAdd: (participant: Participant) => void;
   onRemove: (id: string) => void;
+  onAddMeeting: (participantId: string, block: BusyBlock) => void;
+  onRemoveMeeting: (participantId: string, blockId: string) => void;
   onReset: () => void;
 }
 
@@ -61,6 +212,8 @@ export function ParticipantPanel({
   participants,
   onAdd,
   onRemove,
+  onAddMeeting,
+  onRemoveMeeting,
   onReset,
 }: ParticipantPanelProps) {
   const zones = useMemo(() => supportedTimeZones(), []);
@@ -131,32 +284,37 @@ export function ParticipantPanel({
         }`}
       >
         {participants.map((participant) => (
-          <li
-            key={participant.id}
-            className="flex items-baseline justify-between gap-2 rounded-md bg-[var(--background)] px-3 py-2"
-          >
-            <div className="min-w-0">
-              <div className="font-medium">{participant.name}</div>
-              {/* City and zone identifier on separate lines rather than a single
-                  truncated one: "America/Los..." hides exactly the detail this
-                  app exists to get right. */}
-              <div className="text-xs text-[var(--muted)]">{participant.location}</div>
-              <div className="text-xs break-all text-[var(--muted)]">{participant.timeZone}</div>
+          <li key={participant.id} className="rounded-md bg-[var(--background)] px-3 py-2">
+            <div className="flex items-baseline justify-between gap-2">
+              <div className="min-w-0">
+                <div className="font-medium">{participant.name}</div>
+                {/* City and zone identifier on separate lines rather than a single
+                    truncated one: "America/Los..." hides exactly the detail this
+                    app exists to get right. */}
+                <div className="text-xs text-[var(--muted)]">{participant.location}</div>
+                <div className="text-xs break-all text-[var(--muted)]">{participant.timeZone}</div>
+              </div>
+
+              <div className="flex shrink-0 items-baseline gap-3">
+                <span className="tabular text-sm text-[var(--muted)]">
+                  {participant.workingHours.start}–{participant.workingHours.end}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => onRemove(participant.id)}
+                  aria-label={`Remove ${participant.name}`}
+                  className="text-[var(--muted)] hover:text-[var(--warn)]"
+                >
+                  ×
+                </button>
+              </div>
             </div>
 
-            <div className="flex shrink-0 items-baseline gap-3">
-              <span className="tabular text-sm text-[var(--muted)]">
-                {participant.workingHours.start}–{participant.workingHours.end}
-              </span>
-              <button
-                type="button"
-                onClick={() => onRemove(participant.id)}
-                aria-label={`Remove ${participant.name}`}
-                className="text-[var(--muted)] hover:text-[var(--warn)]"
-              >
-                ×
-              </button>
-            </div>
+            <MeetingList
+              participant={participant}
+              onAdd={(block) => onAddMeeting(participant.id, block)}
+              onRemove={(blockId) => onRemoveMeeting(participant.id, blockId)}
+            />
           </li>
         ))}
 

@@ -221,8 +221,9 @@ describe("pre-existing meetings", () => {
               {
                 id: "offsite",
                 title: "Offsite",
-                startUtc: "2026-03-09T08:00:00Z",
-                endUtc: "2026-03-09T12:30:00Z",
+                date: "2026-03-09",
+                start: "08:00",
+                end: "12:30",
               },
             ],
           }

@@ -112,8 +112,9 @@ describe("freeIntervals", () => {
         {
           id: "standup",
           title: "Standup",
-          startUtc: "2026-03-09T09:00:00Z",
-          endUtc: "2026-03-09T10:00:00Z",
+          date: "2026-03-09",
+          start: "09:00",
+          end: "10:00",
         },
       ],
     };
@@ -123,6 +124,43 @@ describe("freeIntervals", () => {
     expect(monday).toHaveLength(2);
     expect(utc(monday[0].end)).toBe("Mon 09:00");
     expect(utc(monday[1].start)).toBe("Mon 10:00");
+  });
+});
+
+describe("split availability", () => {
+  /**
+   * A meeting in the middle of the day is how a split day gets expressed - a
+   * lunch break, or someone working mornings and late afternoons. There is no
+   * separate feature for it: blocking the middle out leaves two windows.
+   */
+  it("leaves two windows when the middle of a day is blocked", () => {
+    const withGap: Participant = {
+      ...person("tom"),
+      workingHours: { start: "09:00", end: "17:00", days: WEEKDAYS },
+      busy: [{ id: "lunch", title: "Blocked", date: "2026-03-09", start: "11:00", end: "15:00" }],
+    };
+
+    const monday = freeIntervals(withGap, WEEK).filter((w) => utc(w.start).startsWith("Mon"));
+
+    // London is on GMT that week, so local and UTC read the same here.
+    expect(monday.map((w) => `${utc(w.start)}-${utc(w.end)}`)).toEqual([
+      "Mon 09:00-Mon 11:00",
+      "Mon 15:00-Mon 17:00",
+    ]);
+  });
+
+  it("converts a meeting through the participant's own zone", () => {
+    // 11:00-15:00 entered for Sydney is 00:00-04:00 UTC, not 11:00-15:00 UTC.
+    const busySydney: Participant = {
+      ...person("jack"),
+      busy: [{ id: "x", title: "Blocked", date: "2026-03-10", start: "11:00", end: "15:00" }],
+    };
+
+    const free = freeIntervals(busySydney, WEEK);
+    const tuesdayMorning = free.find((w) => utc(w.start) === "Mon 23:00")!;
+
+    // Jack's Tuesday starts 23:00 UTC Monday and is cut short by the 00:00 block.
+    expect(utc(tuesdayMorning.end)).toBe("Tue 00:00");
   });
 });
 
@@ -186,8 +224,9 @@ describe("unavailability reasons", () => {
         {
           id: "review",
           title: "Design review",
-          startUtc: "2026-03-10T09:00:00Z",
-          endUtc: "2026-03-10T10:00:00Z",
+          date: "2026-03-10",
+          start: "09:00",
+          end: "10:00",
         },
       ],
     };

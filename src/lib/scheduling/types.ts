@@ -31,13 +31,22 @@ export interface WorkingHours {
   days: Weekday[];
 }
 
-/** A pre-existing commitment that blocks part of a participant's working hours. */
+/**
+ * A meeting already in someone's calendar, blocking part of their working hours.
+ *
+ * Stored in their own local time, the same as `workingHours` - people enter what
+ * their calendar shows them, and "09:00" means 09:00 where they are. Conversion
+ * to absolute time happens in `availability.ts`, so there is still exactly one
+ * place doing time-zone maths.
+ */
 export interface BusyBlock {
   id: string;
   title: string;
-  /** Absolute start/end, stored as ISO 8601 strings with offset. */
-  startUtc: string;
-  endUtc: string;
+  /** Local calendar date, "YYYY-MM-DD". */
+  date: string;
+  /** Local wall-clock start and end, "HH:mm". An end at or before the start runs past midnight. */
+  start: string;
+  end: string;
 }
 
 export interface Participant {

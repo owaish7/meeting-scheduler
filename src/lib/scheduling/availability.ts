@@ -109,14 +109,34 @@ export function describeTimelineWindow(
   };
 }
 
-/** A participant's pre-existing meetings as absolute intervals. */
+/**
+ * Resolve one existing meeting to absolute time.
+ *
+ * Entered in the participant's own local time, so it converts through their
+ * zone - which means an entry survives a daylight-saving change correctly, just
+ * as working hours do.
+ */
+function blockInterval(zone: string, block: BusyBlock): Interval {
+  const day = DateTime.fromISO(block.date, { zone });
+  if (!day.isValid) throw new SchedulingError(`Invalid date "${block.date}"`);
+
+  const from = parseTimeOfDay(block.start);
+  const to = parseTimeOfDay(block.end);
+
+  const start = day.set({ ...from, second: 0, millisecond: 0 });
+  let end = day.set({ ...to, second: 0, millisecond: 0 });
+  // Same rule as working hours: an end at or before the start crosses midnight.
+  if (end <= start) end = end.plus({ days: 1 });
+
+  return { start: start.toMillis(), end: end.toMillis() };
+}
+
+/** A participant's existing meetings as absolute intervals. */
 export function busyIntervals(participant: Participant): Interval[] {
-  return normalize(
-    participant.busy.map((block) => ({
-      start: DateTime.fromISO(block.startUtc).toMillis(),
-      end: DateTime.fromISO(block.endUtc).toMillis(),
-    })),
-  );
+  const zone = participant.timeZone;
+  if (!isValidTimeZone(zone)) throw new SchedulingError(`Unknown time zone "${zone}"`);
+
+  return normalize(participant.busy.map((block) => blockInterval(zone, block)));
 }
 
 /** Working hours minus pre-existing meetings: when this person can actually meet. */
@@ -124,12 +144,12 @@ export function freeIntervals(participant: Participant, range: Interval): Interv
   return subtract(expandWorkingHours(participant, range), busyIntervals(participant));
 }
 
-/** The pre-existing meeting overlapping `[start, end)`, if any. */
+/** The existing meeting overlapping `[start, end)`, if any. */
 function findConflict(participant: Participant, start: Instant, end: Instant): BusyBlock | undefined {
+  const zone = participant.timeZone;
   return participant.busy.find((block) => {
-    const blockStart = DateTime.fromISO(block.startUtc).toMillis();
-    const blockEnd = DateTime.fromISO(block.endUtc).toMillis();
-    return blockStart < end && blockEnd > start;
+    const interval = blockInterval(zone, block);
+    return interval.start < end && interval.end > start;
   });
 }
 

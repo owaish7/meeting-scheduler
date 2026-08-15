@@ -34,9 +34,7 @@ const timeZone = z
     error: (issue) => `Unknown time zone "${String(issue.input)}"`,
   });
 
-const isoDateTime = z
-  .string()
-  .refine((value) => !Number.isNaN(Date.parse(value)), "Expected an ISO 8601 date-time");
+const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Expected a date in YYYY-MM-DD format");
 
 export const workingHoursSchema = z
   .object({
@@ -49,17 +47,16 @@ export const workingHoursSchema = z
     path: ["end"],
   });
 
-export const busyBlockSchema = z
-  .object({
-    id: z.string().min(1),
-    title: z.string().min(1, "A title is required").max(120),
-    startUtc: isoDateTime,
-    endUtc: isoDateTime,
-  })
-  .refine((block) => Date.parse(block.endUtc) > Date.parse(block.startUtc), {
-    message: "A meeting must end after it starts",
-    path: ["endUtc"],
-  });
+// Entered in the participant's own local time, matching how working hours are
+// given. An end at or before the start is a meeting running past midnight, so
+// it is allowed rather than rejected.
+export const busyBlockSchema = z.object({
+  id: z.string().min(1),
+  title: z.string().min(1, "A title is required").max(120),
+  date: isoDate,
+  start: timeOfDay,
+  end: timeOfDay,
+});
 
 export const participantSchema = z.object({
   id: z.string().min(1),
@@ -73,8 +70,6 @@ export const participantSchema = z.object({
   // exploitable, and a real calendar week does not hold hundreds of meetings.
   busy: z.array(busyBlockSchema).max(500, "Too many existing meetings").default([]),
 });
-
-const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Expected a date in YYYY-MM-DD format");
 
 export const suggestRequestSchema = z.object({
   participants: z
