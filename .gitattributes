@@ -1,0 +1,14 @@
+# Normalise line endings to LF in the repository regardless of the machine that
+# committed. Without this, files committed from Windows carry CRLF endings and
+# show up with trailing ^M or as wholly-changed diffs when opened on macOS or
+# Linux.
+* text=auto eol=lf
+
+# Binary files must never be converted.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.woff binary
+*.woff2 binary
