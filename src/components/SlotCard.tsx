@@ -86,10 +86,19 @@ function ParticipantRow({ view }: { view: ParticipantSlotView }) {
 }
 
 function ParticipantGrid({ views }: { views: ParticipantSlotView[] }) {
-  // Columns rather than one long list: twelve participants become four rows of
-  // three on a wide screen instead of twelve stacked rows.
+  /*
+   * Columns rather than one long list: twelve participants become a few rows
+   * instead of twelve stacked ones.
+   *
+   * The track count comes from `auto-fit` rather than fixed breakpoints. A fixed
+   * three-column grid leaves empty tracks whenever a group does not divide by
+   * three - the brief's four people split into two attending and two missing,
+   * so each group sat in two of three columns and left a visible gap on the
+   * right. With `auto-fit` the empty tracks collapse and the rows present share
+   * the full width, whatever the group size.
+   */
   return (
-    <div className="grid gap-1.5 sm:grid-cols-2 xl:grid-cols-3">
+    <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-1.5">
       {views.map((view) => (
         <ParticipantRow key={view.participantId} view={view} />
       ))}
