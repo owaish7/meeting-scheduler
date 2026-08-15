@@ -37,6 +37,45 @@ function formatDuration(minutes: number): string {
   return rest === 0 ? `${hours}h` : `${hours}h ${rest}m`;
 }
 
+/**
+ * One headline number from the diagnosis.
+ *
+ * The answer a coordinator wants - how many of the group can actually be in one
+ * room - was previously a clause in the middle of a paragraph. Three numbers
+ * lead instead, and the prose becomes support rather than the delivery vehicle.
+ *
+ * The value uses the font's proportional figures rather than tabular ones: at
+ * this size `tabular-nums` gives every digit the width of a zero and reads
+ * loose. Tabular figures are for columns that must align, which these are not.
+ */
+function StatTile({
+  label,
+  value,
+  detail,
+  emphasis,
+}: {
+  label: string;
+  value: string;
+  detail?: string;
+  emphasis?: boolean;
+}) {
+  return (
+    <div className="rounded-md border border-[color:var(--warn)]/20 bg-[var(--surface)] px-3 py-2.5">
+      <div className="text-[11px] font-medium tracking-wide text-[var(--muted)] uppercase">
+        {label}
+      </div>
+      <div
+        className={`mt-0.5 text-2xl leading-tight font-semibold ${
+          emphasis ? "text-[var(--warn)]" : "text-[var(--foreground)]"
+        }`}
+      >
+        {value}
+      </div>
+      {detail && <div className="mt-0.5 text-xs text-[var(--muted)]">{detail}</div>}
+    </div>
+  );
+}
+
 function SectionHeading({ title, hint }: { title: string; hint?: string }) {
   return (
     <div className="mb-3">
@@ -62,6 +101,7 @@ export function Results({ result }: { result: SuggestResponse }) {
   const plannedStarts = new Set(splitPlan?.meetings.map((meeting) => meeting.slot.startUtc) ?? []);
   const otherOptions = bestEffort.filter((slot) => !plannedStarts.has(slot.startUtc));
   const hasPlan = Boolean(splitPlan && splitPlan.meetings.length > 0);
+  const bestCoverage = bestEffort[0]?.attendeeCount ?? 0;
 
   if (fullMatches.length > 0) {
     return (
@@ -98,41 +138,60 @@ export function Results({ result }: { result: SuggestResponse }) {
         </h2>
         {diagnosis && (
           <>
-            <p className="mt-1 text-sm text-[var(--warn)]">{diagnosis.summary}</p>
+            {/* The three numbers that answer "so what do I do?", before any prose. */}
+            <div className="mt-3 grid gap-2 sm:grid-cols-3">
+              <StatTile
+                label="Best single meeting"
+                value={`${bestCoverage} of ${meta.participantCount}`}
+                detail="the most one meeting can reach"
+                emphasis
+              />
+              {hasPlan && (
+                <StatTile
+                  label="To include everyone"
+                  value={
+                    splitPlan!.meetings.length === 1
+                      ? "1 meeting"
+                      : `${splitPlan!.meetings.length} meetings`
+                  }
+                  detail="nobody outside their hours"
+                />
+              )}
+              {diagnosis.forcedOption && (
+                <StatTile
+                  label="If forced into one"
+                  value={formatDuration(diagnosis.forcedOption.totalStretchMinutes)}
+                  detail={`out-of-hours time, ${formatDuration(
+                    diagnosis.forcedOption.worstStretchMinutes,
+                  )} on one person`}
+                />
+              )}
+            </div>
 
             {diagnosis.blockingPairs.length > 0 && (
-              <div className="mt-3 border-t border-[color:var(--warn)]/20 pt-3 text-sm text-[var(--warn)]">
-                <ul className="space-y-1">
+              // Demoted to a disclosure: it is the reasoning behind the numbers
+              // above, wanted on challenge rather than on arrival.
+              <details className="mt-3">
+                <summary className="cursor-pointer text-sm font-medium text-[var(--warn)]">
+                  Why:{" "}
+                  {diagnosis.blockingPairs.length === 1
+                    ? "1 pair never overlaps"
+                    : `${diagnosis.blockingPairs.length} pairs never overlap`}
+                </summary>
+                <ul className="mt-2 space-y-1 text-sm text-[var(--warn)]">
                   {diagnosis.blockingPairs.slice(0, MAX_LISTED_BLOCKERS).map((pair) => (
                     <li key={`${pair.aId}-${pair.bId}`}>{pair.explanation}</li>
                   ))}
                 </ul>
 
                 {/* Pair count grows quadratically with the group, so a large team
-                    would otherwise bury the rest of the banner under a list of
-                    them. The remainder stays reachable rather than discarded. */}
+                    would otherwise bury the banner under a list of them. */}
                 {diagnosis.blockingPairs.length > MAX_LISTED_BLOCKERS && (
-                  <details className="mt-2">
-                    <summary className="cursor-pointer text-xs font-medium opacity-80 hover:opacity-100">
-                      {diagnosis.blockingPairs.length - MAX_LISTED_BLOCKERS} more incompatible pairs
-                    </summary>
-                    <ul className="mt-2 space-y-1">
-                      {diagnosis.blockingPairs.slice(MAX_LISTED_BLOCKERS).map((pair) => (
-                        <li key={`${pair.aId}-${pair.bId}`}>{pair.explanation}</li>
-                      ))}
-                    </ul>
-                  </details>
+                  <p className="mt-1.5 text-xs text-[var(--warn)] opacity-80">
+                    and {diagnosis.blockingPairs.length - MAX_LISTED_BLOCKERS} more
+                  </p>
                 )}
-              </div>
-            )}
-
-            {diagnosis.forcedOption && (
-              <p className="mt-3 border-t border-[color:var(--warn)]/20 pt-3 text-sm text-[var(--warn)]">
-                Forcing everyone into one meeting would cost{" "}
-                <strong>{formatDuration(diagnosis.forcedOption.totalStretchMinutes)}</strong> of
-                out-of-hours time in total, with one person carrying{" "}
-                <strong>{formatDuration(diagnosis.forcedOption.worstStretchMinutes)}</strong> of it.
-              </p>
+              </details>
             )}
           </>
         )}

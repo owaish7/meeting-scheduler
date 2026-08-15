@@ -61,8 +61,10 @@ export function AvailabilityTimeline({ windows, highlight }: AvailabilityTimelin
 
       <div className="space-y-1.5">
         {windows.map((window) => (
-          <div key={window.participantId} className="flex items-center gap-3">
-            <div className="w-24 shrink-0 truncate text-sm sm:w-32">
+          <div key={window.participantId} className="flex items-center gap-2 sm:gap-3">
+            {/* Narrow on a phone, where the label columns would otherwise leave
+                the 24-hour axis about 90px wide and unreadable. */}
+            <div className="w-16 shrink-0 truncate text-sm sm:w-32">
               <span className="font-medium">{window.name}</span>
             </div>
 
@@ -96,7 +98,9 @@ export function AvailabilityTimeline({ windows, highlight }: AvailabilityTimelin
               )}
             </div>
 
-            <div className="tabular w-24 shrink-0 text-right text-xs text-[var(--muted)] sm:w-28">
+            {/* The chart's job is the UTC overlap; local hours are on every slot
+                card already, so this column yields its space on small screens. */}
+            <div className="tabular hidden shrink-0 text-right text-xs text-[var(--muted)] sm:block sm:w-28">
               {window.localStart}–{window.localEnd} local
             </div>
           </div>
@@ -105,8 +109,8 @@ export function AvailabilityTimeline({ windows, highlight }: AvailabilityTimelin
 
       {/* Axis sits below the bars and is aligned to the same track by matching
           the label column widths above. */}
-      <div className="mt-2 flex items-center gap-3" aria-hidden="true">
-        <div className="w-24 shrink-0 sm:w-32" />
+      <div className="mt-2 flex items-center gap-2 sm:gap-3" aria-hidden="true">
+        <div className="w-16 shrink-0 sm:w-32" />
         <div className="relative h-4 grow">
           {AXIS_HOURS.map((hour) => (
             <span
@@ -122,7 +126,7 @@ export function AvailabilityTimeline({ windows, highlight }: AvailabilityTimelin
             </span>
           ))}
         </div>
-        <div className="w-24 shrink-0 sm:w-28" />
+        <div className="hidden shrink-0 sm:block sm:w-28" />
       </div>
 
       <p className="mt-2 text-xs text-[var(--muted)]">
