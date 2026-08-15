@@ -7,8 +7,9 @@
  * vertical line passes through every bar, and the gap between the two ends of
  * the day is plainly visible.
  *
- * It is shown for a successful search too, where it makes the opposite point -
- * the column of bars the suggested time passes through.
+ * It is only rendered when no single time works. A successful search needs no
+ * chart: the slot card already gives the answer in each participant's own
+ * hours, and drawing the overlap as well would restate what the reader has.
  */
 
 import type { TimelineWindow } from "@/lib/scheduling/types";
@@ -40,11 +41,9 @@ function segmentsFor(window: TimelineWindow): { left: number; width: number }[] 
 
 interface AvailabilityTimelineProps {
   windows: TimelineWindow[];
-  /** Optional UTC minute range to mark, typically the recommended slot. */
-  highlight?: { startMinute: number; endMinute: number };
 }
 
-export function AvailabilityTimeline({ windows, highlight }: AvailabilityTimelineProps) {
+export function AvailabilityTimeline({ windows }: AvailabilityTimelineProps) {
   if (windows.length === 0) return null;
 
   return (
@@ -86,16 +85,6 @@ export function AvailabilityTimeline({ windows, highlight }: AvailabilityTimelin
                   style={{ left: `${segment.left}%`, width: `${segment.width}%` }}
                 />
               ))}
-
-              {highlight && (
-                <div
-                  className="absolute top-0 bottom-0 bg-[var(--ok)]/25 ring-1 ring-[var(--ok)]"
-                  style={{
-                    left: `${percent(highlight.startMinute)}%`,
-                    width: `${Math.max(percent(highlight.endMinute - highlight.startMinute), 0.6)}%`,
-                  }}
-                />
-              )}
             </div>
 
             {/* The chart's job is the UTC overlap; local hours are on every slot

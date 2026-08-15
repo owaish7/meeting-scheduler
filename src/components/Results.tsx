@@ -7,24 +7,9 @@
  * plan that covers everyone, and only then the individual partial options.
  */
 
-import type { Slot, SuggestResponse } from "@/lib/scheduling/types";
+import type { SuggestResponse } from "@/lib/scheduling/types";
 import { AvailabilityTimeline } from "./AvailabilityTimeline";
 import { SlotCard } from "./SlotCard";
-
-/** The UTC minute range a slot occupies, for marking it on the timeline. */
-function highlightFor(slot: Slot | undefined) {
-  if (!slot) return undefined;
-
-  const start = new Date(slot.startUtc);
-  const end = new Date(slot.endUtc);
-  const startMinute = start.getUTCHours() * 60 + start.getUTCMinutes();
-  const endMinute = end.getUTCHours() * 60 + end.getUTCMinutes();
-
-  // A slot running past UTC midnight would need two bands; the axis already
-  // shows the working hours, so it is simply left unmarked rather than drawn wrong.
-  if (endMinute <= startMinute) return undefined;
-  return { startMinute, endMinute };
-}
 
 /** Blocking pairs shown before the rest are folded away. */
 const MAX_LISTED_BLOCKERS = 4;
@@ -117,8 +102,10 @@ export function Results({ result }: { result: SuggestResponse }) {
           </p>
         </div>
 
-        <AvailabilityTimeline windows={timeline} highlight={highlightFor(fullMatches[0])} />
-
+        {/* No timeline here. When a time works for everyone the card already
+            says so in each participant's own hours; drawing the overlap as well
+            would restate an answer the reader has. It earns its place only when
+            the answer is "no" and the reason needs showing. */}
         <div className="space-y-3">
           {fullMatches.map((slot) => (
             <SlotCard key={slot.startUtc} slot={slot} />

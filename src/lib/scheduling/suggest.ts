@@ -81,8 +81,9 @@ export function suggest(request: SuggestRequest): SuggestResponse {
     participantCount: participants.length,
   };
 
-  // Returned in both outcomes: it explains a match as readily as it explains the
-  // absence of one, and is the only place the overlap itself is visible.
+  // Returned in both outcomes so the response shape stays uniform, though only
+  // the no-match case has a use for it: when a time does work, the slots already
+  // answer the question and the overlap needs no separate telling.
   const timeline = participants
     .map((participant) => describeTimelineWindow(participant, range))
     .filter((window): window is TimelineWindow => window !== undefined);
