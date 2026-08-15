@@ -28,14 +28,23 @@ function supportedTimeZones(): string[] {
   ];
 }
 
-const DAY_LABELS: { value: Weekday; label: string }[] = [
-  { value: 1, label: "M" },
-  { value: 2, label: "T" },
-  { value: 3, label: "W" },
-  { value: 4, label: "T" },
-  { value: 5, label: "F" },
-  { value: 6, label: "S" },
-  { value: 7, label: "S" },
+/**
+ * Weekday toggles.
+ *
+ * The single-letter labels are ambiguous on their own - two Ts and two Ss, told
+ * apart only by position - and a screen reader would otherwise announce these
+ * buttons as just "T". The full name is carried alongside for the accessible
+ * name and the tooltip, so the compact label is a visual shorthand rather than
+ * the only way to tell the days apart.
+ */
+const DAY_LABELS: { value: Weekday; label: string; name: string }[] = [
+  { value: 1, label: "M", name: "Monday" },
+  { value: 2, label: "T", name: "Tuesday" },
+  { value: 3, label: "W", name: "Wednesday" },
+  { value: 4, label: "T", name: "Thursday" },
+  { value: 5, label: "F", name: "Friday" },
+  { value: 6, label: "S", name: "Saturday" },
+  { value: 7, label: "S", name: "Sunday" },
 ];
 
 const inputClass =
@@ -210,28 +219,39 @@ export function ParticipantPanel({
             </label>
           </div>
 
-          <div>
-            <span className="text-xs text-[var(--muted)]">Working days</span>
+          <div role="group" aria-labelledby="working-days-label">
+            <span id="working-days-label" className="text-xs text-[var(--muted)]">
+              Working days
+            </span>
             <div className="mt-1 flex gap-1">
-              {DAY_LABELS.map((day, index) => (
+              {DAY_LABELS.map((day) => (
                 <button
-                  key={index}
+                  key={day.value}
                   type="button"
                   onClick={() => toggleDay(day.value)}
                   aria-pressed={days.includes(day.value)}
-                  className={`h-8 w-8 rounded-md border text-xs font-medium ${
+                  aria-label={day.name}
+                  title={day.name}
+                  className={`h-8 w-8 rounded-md border text-xs font-medium focus:border-[var(--accent)] focus:outline-2 focus:outline-offset-1 focus:outline-[var(--accent)] ${
                     days.includes(day.value)
                       ? "border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--accent)]"
                       : "border-[var(--border)] text-[var(--muted)]"
                   }`}
                 >
-                  {day.label}
+                  {/* Hidden from assistive tech: aria-label carries the full name. */}
+                  <span aria-hidden="true">{day.label}</span>
                 </button>
               ))}
             </div>
           </div>
 
-          {error && <p className="text-xs text-[var(--warn)]">{error}</p>}
+          {/* Announced on appearance, so the reason a submit did nothing is not
+              only conveyed visually. */}
+          {error && (
+            <p role="alert" className="text-xs text-[var(--warn)]">
+              {error}
+            </p>
+          )}
 
           <div className="flex gap-2">
             <button
