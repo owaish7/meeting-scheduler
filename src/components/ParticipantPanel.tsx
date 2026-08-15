@@ -123,7 +123,13 @@ export function ParticipantPanel({
         </button>
       </header>
 
-      <ul className="space-y-1.5">
+      {/* Bounded once the list outgrows the space it deserves, so a large team
+          cannot push the rest of the page out of reach. */}
+      <ul
+        className={`space-y-1.5 ${
+          participants.length > 8 ? "max-h-96 overflow-y-auto pr-1" : ""
+        }`}
+      >
         {participants.map((participant) => (
           <li
             key={participant.id}

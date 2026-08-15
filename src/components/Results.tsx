@@ -10,6 +10,9 @@
 import type { SuggestResponse } from "@/lib/scheduling/types";
 import { SlotCard } from "./SlotCard";
 
+/** Blocking pairs shown before the rest are folded away. */
+const MAX_LISTED_BLOCKERS = 4;
+
 function formatDuration(minutes: number): string {
   if (minutes < 60) return `${minutes} min`;
 
@@ -80,11 +83,29 @@ export function Results({ result }: { result: SuggestResponse }) {
             <p className="mt-1 text-sm text-[var(--warn)]">{diagnosis.summary}</p>
 
             {diagnosis.blockingPairs.length > 0 && (
-              <ul className="mt-3 space-y-1 border-t border-[color:var(--warn)]/20 pt-3 text-sm text-[var(--warn)]">
-                {diagnosis.blockingPairs.map((pair) => (
-                  <li key={`${pair.aId}-${pair.bId}`}>{pair.explanation}</li>
-                ))}
-              </ul>
+              <div className="mt-3 border-t border-[color:var(--warn)]/20 pt-3 text-sm text-[var(--warn)]">
+                <ul className="space-y-1">
+                  {diagnosis.blockingPairs.slice(0, MAX_LISTED_BLOCKERS).map((pair) => (
+                    <li key={`${pair.aId}-${pair.bId}`}>{pair.explanation}</li>
+                  ))}
+                </ul>
+
+                {/* Pair count grows quadratically with the group, so a large team
+                    would otherwise bury the rest of the banner under a list of
+                    them. The remainder stays reachable rather than discarded. */}
+                {diagnosis.blockingPairs.length > MAX_LISTED_BLOCKERS && (
+                  <details className="mt-2">
+                    <summary className="cursor-pointer text-xs font-medium opacity-80 hover:opacity-100">
+                      {diagnosis.blockingPairs.length - MAX_LISTED_BLOCKERS} more incompatible pairs
+                    </summary>
+                    <ul className="mt-2 space-y-1">
+                      {diagnosis.blockingPairs.slice(MAX_LISTED_BLOCKERS).map((pair) => (
+                        <li key={`${pair.aId}-${pair.bId}`}>{pair.explanation}</li>
+                      ))}
+                    </ul>
+                  </details>
+                )}
+              </div>
             )}
 
             {diagnosis.forcedOption && (

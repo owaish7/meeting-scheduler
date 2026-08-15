@@ -98,8 +98,14 @@ export default function Home() {
         </p>
       </header>
 
-      <div className="grid gap-6 lg:grid-cols-[320px_1fr]">
-        <div className="space-y-4">
+      <div className="grid gap-6 lg:grid-cols-[320px_1fr] lg:items-start">
+        {/*
+         * Stacked on narrow screens, the participant list pushes the controls and
+         * results more than a screen down the page, so the ordering flips: search
+         * first, roster below. Side by side there is no such competition, and the
+         * roster returns to the left where it reads as context for the results.
+         */}
+        <div className="order-2 space-y-4 lg:sticky lg:top-6 lg:order-1">
           <ParticipantPanel
             participants={participants}
             onAdd={(participant) => updateParticipants((current) => [...current, participant])}
@@ -111,7 +117,7 @@ export default function Home() {
           />
         </div>
 
-        <div className="space-y-6">
+        <div className="order-1 space-y-6 lg:order-2">
           <section className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-4">
             <div className="flex flex-wrap items-end gap-3">
               <label className="text-xs text-[var(--muted)]">
