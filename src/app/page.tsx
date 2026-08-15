@@ -16,7 +16,17 @@ import { participantRepository } from "@/lib/repository";
 import { DEFAULT_DURATION_MINUTES, DEFAULT_RANGE } from "@/lib/seed";
 import type { Participant, SuggestResponse } from "@/lib/scheduling/types";
 
-const DURATION_OPTIONS = [15, 30, 45, 60, 90];
+const DURATION_OPTIONS = [15, 30, 45, 60, 90, 120, 180, 240];
+
+/** "90" -> "1h 30m". Plain minutes read poorly once past an hour. */
+function durationLabel(minutes: number): string {
+  if (minutes < 60) return `${minutes} minutes`;
+
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  const hourPart = hours === 1 ? "1 hour" : `${hours} hours`;
+  return rest === 0 ? hourPart : `${hourPart} ${rest}m`;
+}
 
 const controlClass =
   "rounded-md border border-[var(--border)] bg-[var(--surface)] px-2.5 py-1.5 text-sm outline-none focus:border-[var(--accent)]";
@@ -113,7 +123,7 @@ export default function Home() {
                 >
                   {DURATION_OPTIONS.map((minutes) => (
                     <option key={minutes} value={minutes}>
-                      {minutes} minutes
+                      {durationLabel(minutes)}
                     </option>
                   ))}
                 </select>
